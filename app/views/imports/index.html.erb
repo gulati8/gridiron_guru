@@ -1,0 +1,100 @@
+<div class="row">
+  <div class="col-12">
+    <h1>Data Import Center</h1>
+    <p class="text-muted">Import player statistics from Pro Football Reference</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">
+        <h5>Import Single Position</h5>
+      </div>
+      <div class="card-body">
+        <%= form_with url: import_pro_football_reference_stats_imports_path, method: :post, local: true do |f| %>
+          <div class="mb-3">
+            <%= f.label :file_path, "File Path", class: "form-label" %>
+            <%= f.text_field :file_path, class: "form-control", 
+                placeholder: "/path/to/qb.json" %>
+            <div class="form-text">Full path to the JSON file</div>
+          </div>
+          
+          <div class="mb-3">
+            <%= f.label :position, "Position", class: "form-label" %>
+            <%= f.select :position, options_for_select(%w[QB RB WR TE].map { |p| [p, p] }), 
+                { prompt: "Select Position" }, { class: "form-select" } %>
+          </div>
+          
+          <div class="mb-3">
+            <%= f.label :season, "Season", class: "form-label" %>
+            <%= f.number_field :season, class: "form-control", 
+                value: Date.current.year, min: 2020, max: Date.current.year %>
+          </div>
+          
+          <%= f.submit "Import Position Stats", class: "btn btn-primary" %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">
+        <h5>Bulk Import All Positions</h5>
+      </div>
+      <div class="card-body">
+        <%= form_with url: bulk_import_pro_football_reference_stats_imports_path, method: :post, local: true do |f| %>
+          <div class="mb-3">
+            <%= f.label :directory_path, "Directory Path", class: "form-label" %>
+            <%= f.text_field :directory_path, class: "form-control", 
+                placeholder: "/path/to/data/directory" %>
+            <div class="form-text">
+              Directory containing qb.json, rb.json, wr.json, te.json files
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <%= f.label :season, "Season", class: "form-label" %>
+            <%= f.number_field :season, class: "form-control", 
+                value: Date.current.year, min: 2020, max: Date.current.year %>
+          </div>
+          
+          <%= f.submit "Bulk Import All Positions", class: "btn btn-success" %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5>Import Instructions</h5>
+      </div>
+      <div class="card-body">
+        <h6>Single Position Import</h6>
+        <p>Upload individual JSON files for specific positions. Use this when you have updated data for just one position.</p>
+        
+        <h6>Bulk Import</h6>
+        <p>Import all positions at once from a directory. The directory should contain:</p>
+        <ul>
+          <li><code>qb.json</code> - Quarterback statistics</li>
+          <li><code>rb.json</code> - Running back statistics</li>
+          <li><code>wr.json</code> - Wide receiver statistics</li>
+          <li><code>te.json</code> - Tight end statistics</li>
+        </ul>
+        
+        <h6>Using Rake Tasks</h6>
+        <pre class="bg-light p-2">
+# Import from directory
+rails pro_football_reference:import_stats[/path/to/data,2024]
+
+# Import single position
+rails pro_football_reference:import_position[/path/to/qb.json,QB,2024]
+        </pre>
+      </div>
+    </div>
+  </div>
+</div>

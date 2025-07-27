@@ -1,0 +1,116 @@
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1>
+        <%= @player.name %> 
+        <span class="badge bg-primary"><%= @player.position %></span>
+      </h1>
+      <div>
+        <%= form_with url: analytics_path(@player), method: :get, local: true, class: "d-flex" do |f| %>
+          <%= f.select :season, options_for_select((2020..Date.current.year).map { |y| [y, y] }, @season), 
+                      { prompt: "Select Season" }, { class: "form-select me-2" } %>
+          <%= f.submit "Change Season", class: "btn btn-primary" %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if @stats %>
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header">
+          <h5><%= @season %> Season Stats - <%= @stats.team_abbr %></h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <h6>Fantasy Production</h6>
+              <ul class="list-unstyled">
+                <li><strong>PPR Points:</strong> <%= @stats.fantasy_points_ppr.round(1) %></li>
+                <li><strong>Half PPR:</strong> <%= @stats.fantasy_points_half_ppr.round(1) %></li>
+                <li><strong>Standard:</strong> <%= @stats.fantasy_points_standard.round(1) %></li>
+                <li><strong>Games:</strong> <%= @stats.games %> (<%= @stats.games_started %> starts)</li>
+              </ul>
+            </div>
+            
+            <div class="col-md-6">
+              <h6>Core Stats</h6>
+              <ul class="list-unstyled">
+                <% case @player.position %>
+                <% when 'QB' %>
+                  <li><strong>Passing:</strong> <%= @stats.pass_cmp %>/<%= @stats.pass_att %> (<%= @stats.pass_cmp_pct %>%)</li>
+                  <li><strong>Pass Yards:</strong> <%= @stats.pass_yds %></li>
+                  <li><strong>Pass TDs:</strong> <%= @stats.pass_td %></li>
+                  <li><strong>Interceptions:</strong> <%= @stats.pass_int %></li>
+                  <li><strong>Rush Yards:</strong> <%= @stats.rush_yds %></li>
+                  <li><strong>Rush TDs:</strong> <%= @stats.rush_td %></li>
+                <% when 'RB' %>
+                  <li><strong>Rushing:</strong> <%= @stats.rush_att %> carries, <%= @stats.rush_yds %> yds</li>
+                  <li><strong>Rush TDs:</strong> <%= @stats.rush_td %></li>
+                  <li><strong>Receiving:</strong> <%= @stats.rec %>/<%= @stats.targets %> (<%= @stats.catch_pct %>%)</li>
+                  <li><strong>Rec Yards:</strong> <%= @stats.rec_yds %></li>
+                  <li><strong>Rec TDs:</strong> <%= @stats.rec_td %></li>
+                  <li><strong>Total TDs:</strong> <%= @stats.total_td %></li>
+                <% when 'WR', 'TE' %>
+                  <li><strong>Receiving:</strong> <%= @stats.rec %>/<%= @stats.targets %> (<%= @stats.catch_pct %>%)</li>
+                  <li><strong>Rec Yards:</strong> <%= @stats.rec_yds %></li>
+                  <li><strong>Rec TDs:</strong> <%= @stats.rec_td %></li>
+                  <li><strong>YAC/Rec:</strong> <%= @stats.yards_after_catch_per_reception.round(1) %></li>
+                  <li><strong>ADOT:</strong> <%= @stats.average_depth_of_target.round(1) %></li>
+                <% end %>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-4">
+      <div class="card mb-3">
+        <div class="card-header">
+          <h6>Efficiency Metrics</h6>
+        </div>
+        <div class="card-body">
+          <% @efficiency_metrics.each do |metric, value| %>
+            <div class="d-flex justify-content-between">
+              <span><%= metric.to_s.humanize %>:</span>
+              <strong><%= value %></strong>
+            </div>
+          <% end %>
+        </div>
+      </div>
+      
+      <div class="card mb-3">
+        <div class="card-header">
+          <h6>Fantasy Value</h6>
+        </div>
+        <div class="card-body">
+          <div class="text-center">
+            <h4 class="text-primary"><%= @fantasy_value_score %></h4>
+            <small class="text-muted">Fantasy Value Score</small>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-header">
+          <h6>Risk Factors</h6>
+        </div>
+        <div class="card-body">
+          <% @injury_risk.each do |factor, level| %>
+            <div class="d-flex justify-content-between mb-2">
+              <span><%= factor.to_s.humanize %>:</span>
+              <span class="badge bg-<%= risk_badge_color(level) %>"><%= level %></span>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+<% else %>
+  <div class="alert alert-warning">
+    No stats found for <%= @player.name %> in the <%= @season %> season.
+  </div>
+<% end %>

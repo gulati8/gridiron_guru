@@ -1,0 +1,118 @@
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1><%= @position %> Rankings - <%= @season %></h1>
+      
+      <div class="d-flex gap-2">
+        <%= form_with url: rankings_analytics_path, method: :get, local: true, class: "d-flex align-items-center" do |f| %>
+          <%= f.select :position, options_for_select(%w[QB RB WR TE].map { |p| [p, p] }, @position), 
+                      {}, { class: "form-select form-select-sm me-2" } %>
+          <%= f.select :season, options_for_select((2020..Date.current.year).map { |y| [y, y] }, @season), 
+                      {}, { class: "form-select form-select-sm me-2" } %>
+          <%= f.select :scoring_type, options_for_select([['PPR', 'ppr'], ['Half PPR', 'half_ppr'], ['Standard', 'standard']], @scoring_type), 
+                      {}, { class: "form-select form-select-sm me-2" } %>
+          <%= f.submit "Update", class: "btn btn-sm btn-primary" %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">
+        <h5>Top Performers</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive" data-controller="sortable-table">
+          <table class="table table-hover" data-sortable-table-target="table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Team</th>
+                <th>Fantasy Points</th>
+                <th>Efficiency Score</th>
+                <th>Key Stats</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @performers.each_with_index do |performer, index| %>
+                <tr>
+                  <td><%= index + 1 %></td>
+                  <td>
+                    <%= link_to performer[:player].name, 
+                        analytics_path(performer[:player], season: @season),
+                        class: "text-decoration-none" %>
+                  </td>
+                  <td><%= performer[:stats].team_abbr %></td>
+                  <td><%= performer[:fantasy_points].round(1) %></td>
+                  <td><%= performer[:efficiency_score] %></td>
+                  <td>
+                    <% case @position %>
+                    <% when 'QB' %>
+                      <%= performer[:stats].pass_yds %> yds, <%= performer[:stats].total_tds %> TDs
+                    <% when 'RB' %>
+                      <%= performer[:stats].yds_from_scrimmage %> yds, <%= performer[:stats].total_td %> TDs
+                    <% when 'WR', 'TE' %>
+                      <%= performer[:stats].targets %> tgt, <%= performer[:stats].rec_yds %> yds
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header">
+        <h6 class="text-success">Sleeper Candidates</h6>
+      </div>
+      <div class="card-body">
+        <% if @sleepers.any? %>
+          <% @sleepers.first(10).each do |sleeper| %>
+            <div class="mb-2">
+              <%= link_to sleeper[:player].name, 
+                  analytics_path(sleeper[:player], season: @season),
+                  class: "text-decoration-none text-success" %>
+              <small class="text-muted d-block">
+                Efficiency: <%= sleeper[:efficiency_score] %> | 
+                Points: <%= sleeper[:fantasy_points].round(1) %>
+              </small>
+            </div>
+          <% end %>
+        <% else %>
+          <p class="text-muted">No sleeper candidates identified</p>
+        <% end %>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <h6 class="text-danger">Bust Candidates</h6>
+      </div>
+      <div class="card-body">
+        <% if @busts.any? %>
+          <% @busts.first(10).each do |bust| %>
+            <div class="mb-2">
+              <%= link_to bust[:player].name, 
+                  analytics_path(bust[:player], season: @season),
+                  class: "text-decoration-none text-danger" %>
+              <small class="text-muted d-block">
+                Efficiency: <%= bust[:efficiency_score] %> | 
+                Points: <%= bust[:fantasy_points].round(1) %>
+              </small>
+            </div>
+          <% end %>
+        <% else %>
+          <p class="text-muted">No bust candidates identified</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

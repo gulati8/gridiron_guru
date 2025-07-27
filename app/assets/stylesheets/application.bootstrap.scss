@@ -1,0 +1,30 @@
+@import 'bootstrap/scss/bootstrap';
+@import 'bootstrap-icons/font/bootstrap-icons';
+
+// Sortable table styles
+.sortable-header {
+  position: relative;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+  
+  &[data-sort-direction="asc"] {
+    background-color: rgba(25, 135, 84, 0.1);
+  }
+  
+  &[data-sort-direction="desc"] {
+    background-color: rgba(25, 135, 84, 0.1);
+  }
+}
+
+.sort-indicator {
+  font-size: 0.8em;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+  
+  .sortable-header:hover & {
+    opacity: 1;
+  }
+}

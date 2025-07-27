@@ -1,0 +1,73 @@
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <div class="hero-section bg-primary text-white text-center py-5 mb-5">
+        <div class="container">
+          <h1 class="display-4 fw-bold">Gridiron Guru</h1>
+          <p class="lead">Advanced NFL Fantasy Football Analytics</p>
+          <p class="mb-4">Dive deep into player statistics, rankings, and performance metrics to dominate your fantasy league.</p>
+        </div>
+      </div>
+
+      <div class="container">
+        <div class="row g-4">
+          <div class="col-md-6 col-lg-3">
+            <div class="card h-100 text-center">
+              <div class="card-body">
+                <i class="bi bi-person-badge display-4 text-primary mb-3"></i>
+                <h5 class="card-title">Quarterbacks</h5>
+                <p class="card-text">Analyze QB performance, passing efficiency, and fantasy potential.</p>
+                <%= link_to "View QBs", "/quarterbacks", class: "btn btn-primary" %>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-lg-3">
+            <div class="card h-100 text-center">
+              <div class="card-body">
+                <i class="bi bi-lightning-charge display-4 text-success mb-3"></i>
+                <h5 class="card-title">Running Backs</h5>
+                <p class="card-text">Discover RB efficiency, usage rates, and touchdown potential.</p>
+                <%= link_to "View RBs", "/running-backs", class: "btn btn-success" %>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-lg-3">
+            <div class="card h-100 text-center">
+              <div class="card-body">
+                <i class="bi bi-bullseye display-4 text-warning mb-3"></i>
+                <h5 class="card-title">Wide Receivers</h5>
+                <p class="card-text">Explore WR target share, route efficiency, and red zone usage.</p>
+                <%= link_to "View WRs", "/wide-receivers", class: "btn btn-warning" %>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-lg-3">
+            <div class="card h-100 text-center">
+              <div class="card-body">
+                <i class="bi bi-shield-check display-4 text-info mb-3"></i>
+                <h5 class="card-title">Tight Ends</h5>
+                <p class="card-text">Find reliable TE options with consistent target volume.</p>
+                <%= link_to "View TEs", "/tight-ends", class: "btn btn-info" %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row mt-5">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-body text-center">
+                <h3 class="card-title">Advanced Analytics Dashboard</h3>
+                <p class="card-text">Access comprehensive rankings, team analysis, and player comparisons.</p>
+                <%= link_to "View Analytics", analytics_path, class: "btn btn-outline-primary btn-lg" %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

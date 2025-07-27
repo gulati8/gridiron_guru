@@ -1,0 +1,155 @@
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1 class="h2"><%= @stats_summary[:position_name] || "Players" %></h1>
+          <p class="text-muted">Season <%= @season %></p>
+        </div>
+        <div>
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              Season: <%= @season %>
+            </button>
+            <ul class="dropdown-menu">
+              <% (2020..Date.current.year).reverse_each do |year| %>
+                <li>
+                  <%= link_to year, request.path + "?season=#{year}", 
+                      class: "dropdown-item #{'active' if year == @season}" %>
+                </li>
+              <% end %>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <% if @stats_summary.present? && @stats_summary[:total_players] > 0 %>
+        <div class="row mb-4">
+          <div class="col-md-3">
+            <div class="card bg-primary text-white">
+              <div class="card-body text-center">
+                <h5 class="card-title">Total Players</h5>
+                <h3><%= @stats_summary[:total_players] %></h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-success text-white">
+              <div class="card-body text-center">
+                <h5 class="card-title">Avg Fantasy Points</h5>
+                <h3><%= number_with_precision(@stats_summary[:avg_fantasy_points], precision: 1) %></h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card bg-warning text-dark">
+              <div class="card-body text-center">
+                <h5 class="card-title">Top Performer</h5>
+                <h3><%= @stats_summary[:top_performer]&.name || "N/A" %></h3>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Player Statistics</h5>
+        </div>
+        <div class="card-body">
+          <% if @players.any? %>
+            <div class="table-responsive" data-controller="sortable-table">
+              <table class="table table-striped table-hover" data-sortable-table-target="table">
+                <thead>
+                  <tr>
+                    <th>Player</th>
+                    <th>Team</th>
+                    <th>Games</th>
+                    <% if @position == 'QB' %>
+                      <th>Pass Yds</th>
+                      <th>Pass TDs</th>
+                      <th>INTs</th>
+                      <th>Rush Yds</th>
+                      <th>Rush TDs</th>
+                    <% elsif @position == 'RB' %>
+                      <th>Rush Yds</th>
+                      <th>Rush TDs</th>
+                      <th>Rec</th>
+                      <th>Rec Yds</th>
+                      <th>Rec TDs</th>
+                    <% elsif @position.in?(['WR', 'TE']) %>
+                      <th>Targets</th>
+                      <th>Rec</th>
+                      <th>Rec Yds</th>
+                      <th>Rec TDs</th>
+                      <th>Catch %</th>
+                    <% end %>
+                    <th>Fantasy Pts</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @players.each do |player| %>
+                    <% stats = player.season_stats(@season) %>
+                    <% next unless stats %>
+                    <tr>
+                      <td>
+                        <strong><%= player.name %></strong><br>
+                        <small class="text-muted"><%= player.position %></small>
+                      </td>
+                      <td><%= stats.team_abbr %></td>
+                      <td><%= stats.games %></td>
+                      <% if @position == 'QB' %>
+                        <td><%= number_with_delimiter(stats.pass_yds) %></td>
+                        <td><%= stats.pass_td %></td>
+                        <td><%= stats.pass_int %></td>
+                        <td><%= stats.rush_yds %></td>
+                        <td><%= stats.rush_td %></td>
+                      <% elsif @position == 'RB' %>
+                        <td><%= number_with_delimiter(stats.rush_yds) %></td>
+                        <td><%= stats.rush_td %></td>
+                        <td><%= stats.rec %></td>
+                        <td><%= stats.rec_yds %></td>
+                        <td><%= stats.rec_td %></td>
+                      <% elsif @position.in?(['WR', 'TE']) %>
+                        <td><%= stats.targets %></td>
+                        <td><%= stats.rec %></td>
+                        <td><%= number_with_delimiter(stats.rec_yds) %></td>
+                        <td><%= stats.rec_td %></td>
+                        <td><%= number_with_precision(stats.catch_pct, precision: 1) %>%</td>
+                      <% end %>
+                      <td>
+                        <strong><%= number_with_precision(
+                          (stats.respond_to?(:fantasy_points_ppr) && stats.fantasy_points_ppr) ? 
+                            stats.fantasy_points_ppr : 
+                            (stats.respond_to?(:calculate_fantasy_points) ? stats.calculate_fantasy_points(:ppr) : 0), 
+                          precision: 1) %></strong>
+                      </td>
+                      <td>
+                        <%= link_to "View Details", 
+                            case @position
+                            when 'QB' then "/quarterbacks/#{player.id}"
+                            when 'RB' then "/running-backs/#{player.id}"
+                            when 'WR' then "/wide-receivers/#{player.id}"
+                            when 'TE' then "/tight-ends/#{player.id}"
+                            end + "?season=#{@season}",
+                            class: "btn btn-sm btn-outline-primary" %>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% else %>
+            <div class="text-center py-5">
+              <i class="bi bi-info-circle display-4 text-muted mb-3"></i>
+              <h4 class="text-muted">No Players Found</h4>
+              <p class="text-muted">No <%= @stats_summary[:position_name]&.downcase || "players" %> found for the <%= @season %> season.</p>
+              <%= link_to "Import Data", imports_path, class: "btn btn-primary" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,248 @@
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><%= link_to "Home", root_path %></li>
+          <li class="breadcrumb-item">
+            <%= link_to case @position
+                when 'QB' then 'Quarterbacks'
+                when 'RB' then 'Running Backs'
+                when 'WR' then 'Wide Receivers'
+                when 'TE' then 'Tight Ends'
+                end,
+                case @position
+                when 'QB' then '/quarterbacks'
+                when 'RB' then '/running-backs'
+                when 'WR' then '/wide-receivers'
+                when 'TE' then '/tight-ends'
+                end + "?season=#{@season}" %>
+          </li>
+          <li class="breadcrumb-item active"><%= @player.name %></li>
+        </ol>
+      </nav>
+
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1 class="h2"><%= @player.name %></h1>
+          <p class="text-muted"><%= @player.position %> • Season <%= @season %></p>
+        </div>
+        <div>
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              Season: <%= @season %>
+            </button>
+            <ul class="dropdown-menu">
+              <% (2020..Date.current.year).reverse_each do |year| %>
+                <li>
+                  <%= link_to year, request.path + "?season=#{year}", 
+                      class: "dropdown-item #{'active' if year == @season}" %>
+                </li>
+              <% end %>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+              <h5 class="card-title">Fantasy Value</h5>
+              <h3><%= number_with_precision(@fantasy_value_score, precision: 1) %></h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-success text-white">
+            <div class="card-body text-center">
+              <h5 class="card-title">Fantasy Points</h5>
+              <h3><%= number_with_precision(
+                (@stats.respond_to?(:fantasy_points_ppr) && @stats.fantasy_points_ppr) ? 
+                  @stats.fantasy_points_ppr : 
+                  (@stats.respond_to?(:calculate_fantasy_points) ? @stats.calculate_fantasy_points(:ppr) : 0), 
+                precision: 1) %></h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-info text-white">
+            <div class="card-body text-center">
+              <h5 class="card-title">Games Played</h5>
+              <h3><%= @stats.games %></h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-warning text-dark">
+            <div class="card-body text-center">
+              <h5 class="card-title">Team</h5>
+              <h3><%= @stats.team_abbr %></h3>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-lg-8">
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5 class="mb-0">Season Statistics</h5>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <% if @position == 'QB' %>
+                  <div class="col-md-6">
+                    <h6 class="text-muted">Passing</h6>
+                    <table class="table table-sm">
+                      <tr><td>Completions</td><td><%= @stats.pass_cmp %></td></tr>
+                      <tr><td>Attempts</td><td><%= @stats.pass_att %></td></tr>
+                      <tr><td>Completion %</td><td><%= number_with_precision(@stats.pass_cmp_pct, precision: 1) %>%</td></tr>
+                      <tr><td>Passing Yards</td><td><%= number_with_delimiter(@stats.pass_yds) %></td></tr>
+                      <tr><td>YDS/ATT</td><td><%= number_with_precision(@stats.pass_yds_per_att, precision: 1) %></td></tr>
+                      <tr><td>Passing TDs</td><td><%= @stats.pass_td %></td></tr>
+                      <tr><td>Interceptions</td><td><%= @stats.pass_int %></td></tr>
+                      <tr><td>Passer Rating</td><td><%= number_with_precision(@stats.pass_rating, precision: 1) %></td></tr>
+                    </table>
+                  </div>
+                  <div class="col-md-6">
+                    <h6 class="text-muted">Rushing</h6>
+                    <table class="table table-sm">
+                      <tr><td>Rush Attempts</td><td><%= @stats.rush_att %></td></tr>
+                      <tr><td>Rush Yards</td><td><%= @stats.rush_yds %></td></tr>
+                      <tr><td>Rush TDs</td><td><%= @stats.rush_td %></td></tr>
+                      <tr><td>Fumbles</td><td><%= @stats.fumbles %></td></tr>
+                    </table>
+                  </div>
+                <% elsif @position == 'RB' %>
+                  <div class="col-md-6">
+                    <h6 class="text-muted">Rushing</h6>
+                    <table class="table table-sm">
+                      <tr><td>Rush Attempts</td><td><%= @stats.rush_att %></td></tr>
+                      <tr><td>Rush Yards</td><td><%= number_with_delimiter(@stats.rush_yds) %></td></tr>
+                      <tr><td>YDS/ATT</td><td><%= number_with_precision(@stats.rush_yds_per_att, precision: 1) %></td></tr>
+                      <tr><td>Rush TDs</td><td><%= @stats.rush_td %></td></tr>
+                      <tr><td>Long Rush</td><td><%= @stats.rush_long %></td></tr>
+                    </table>
+                  </div>
+                  <div class="col-md-6">
+                    <h6 class="text-muted">Receiving</h6>
+                    <table class="table table-sm">
+                      <tr><td>Targets</td><td><%= @stats.targets %></td></tr>
+                      <tr><td>Receptions</td><td><%= @stats.rec %></td></tr>
+                      <tr><td>Catch %</td><td><%= number_with_precision(@stats.catch_pct, precision: 1) %>%</td></tr>
+                      <tr><td>Rec Yards</td><td><%= @stats.rec_yds %></td></tr>
+                      <tr><td>YDS/TGT</td><td><%= number_with_precision(@stats.rec_yds_per_tgt, precision: 1) %></td></tr>
+                      <tr><td>Rec TDs</td><td><%= @stats.rec_td %></td></tr>
+                      <tr><td>Fumbles</td><td><%= @stats.fumbles %></td></tr>
+                    </table>
+                  </div>
+                <% elsif @position.in?(['WR', 'TE']) %>
+                  <div class="col-md-6">
+                    <h6 class="text-muted">Receiving</h6>
+                    <table class="table table-sm">
+                      <tr><td>Targets</td><td><%= @stats.targets %></td></tr>
+                      <tr><td>Receptions</td><td><%= @stats.rec %></td></tr>
+                      <tr><td>Catch %</td><td><%= number_with_precision(@stats.catch_pct, precision: 1) %>%</td></tr>
+                      <tr><td>Rec Yards</td><td><%= number_with_delimiter(@stats.rec_yds) %></td></tr>
+                      <tr><td>YDS/REC</td><td><%= number_with_precision(@stats.rec_yds_per_rec, precision: 1) %></td></tr>
+                      <tr><td>YDS/TGT</td><td><%= number_with_precision(@stats.rec_yds_per_tgt, precision: 1) %></td></tr>
+                      <tr><td>Rec TDs</td><td><%= @stats.rec_td %></td></tr>
+                      <tr><td>Long Rec</td><td><%= @stats.rec_long %></td></tr>
+                    </table>
+                  </div>
+                  <div class="col-md-6">
+                    <h6 class="text-muted">Other</h6>
+                    <table class="table table-sm">
+                      <tr><td>Rush Attempts</td><td><%= @stats.rush_att %></td></tr>
+                      <tr><td>Rush Yards</td><td><%= @stats.rush_yds %></td></tr>
+                      <tr><td>Rush TDs</td><td><%= @stats.rush_td %></td></tr>
+                      <tr><td>Fumbles</td><td><%= @stats.fumbles %></td></tr>
+                    </table>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <% if @efficiency_metrics.present? %>
+            <div class="card mb-4">
+              <div class="card-header">
+                <h5 class="mb-0">Efficiency Metrics</h5>
+              </div>
+              <div class="card-body">
+                <% @efficiency_metrics.each do |key, value| %>
+                  <div class="d-flex justify-content-between mb-2">
+                    <span class="text-capitalize"><%= key.to_s.humanize %></span>
+                    <strong><%= value.is_a?(Numeric) ? number_with_precision(value, precision: 2) : value %></strong>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+
+          <% if @injury_risk.present? %>
+            <div class="card">
+              <div class="card-header">
+                <h5 class="mb-0">Risk Factors</h5>
+              </div>
+              <div class="card-body">
+                <% @injury_risk.each do |key, value| %>
+                  <div class="d-flex justify-content-between mb-2">
+                    <span class="text-capitalize"><%= key.to_s.humanize %></span>
+                    <span class="badge <%= case value
+                      when 'Low' then 'bg-success'
+                      when 'Medium' then 'bg-warning'
+                      when 'High' then 'bg-danger'
+                      else 'bg-secondary'
+                      end %>"><%= value %></span>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if @weekly_stats.any? %>
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Weekly Performance Charts</h5>
+        </div>
+        <div class="card-body">
+          <% if @chart_data.present? %>
+            <div class="row">
+              <% @chart_data.each do |chart_name, chart_data| %>
+                <div class="col-lg-6 mb-4">
+                  <div class="chart-container" style="height: 400px; position: relative;">
+                    <h6 class="text-center mb-3"><%= chart_name.to_s.humanize %></h6>
+                    <div style="height: 350px; position: relative;">
+                      <canvas 
+                        data-controller="chart"
+                        data-chart-type-value="line"
+                        data-chart-data-value="<%= chart_data.to_json %>">
+                      </canvas>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="text-center py-4">
+              <i class="bi bi-graph-up display-4 text-muted mb-3"></i>
+              <h5 class="text-muted">No Weekly Data Available</h5>
+              <p class="text-muted">Weekly performance charts will appear here when data is available for <%= @player.name %> in the <%= @season %> season.</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>

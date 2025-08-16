@@ -1,0 +1,23 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  sleeper_league_id: MyString
+  name: MyString
+  season: 1
+  total_rosters: 1
+  status: MyString
+  scoring_settings: 
+  roster_positions: 
+  settings: 
+  league_type: MyString
+
+two:
+  sleeper_league_id: MyString
+  name: MyString
+  season: 1
+  total_rosters: 1
+  status: MyString
+  scoring_settings: 
+  roster_positions: 
+  settings: 
+  league_type: MyString

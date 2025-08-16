@@ -1,0 +1,27 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  sleeper_player_id: MyString
+  player_name: MyString
+  position: MyString
+  team: MyString
+  season: 1
+  week: 1
+  season_type: MyString
+  stats: 
+  fantasy_points_standard: 9.99
+  fantasy_points_half_ppr: 9.99
+  fantasy_points_ppr: 9.99
+
+two:
+  sleeper_player_id: MyString
+  player_name: MyString
+  position: MyString
+  team: MyString
+  season: 1
+  week: 1
+  season_type: MyString
+  stats: 
+  fantasy_points_standard: 9.99
+  fantasy_points_half_ppr: 9.99
+  fantasy_points_ppr: 9.99

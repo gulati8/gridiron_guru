@@ -1,0 +1,13 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  sleeper_user_id: MyString
+  username: MyString
+  display_name: MyString
+  avatar: MyString
+
+two:
+  sleeper_user_id: MyString
+  username: MyString
+  display_name: MyString
+  avatar: MyString

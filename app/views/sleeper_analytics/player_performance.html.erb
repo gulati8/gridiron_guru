@@ -1,0 +1,285 @@
+<div class="row">
+  <div class="col-12">
+    <h1>🏃 Player Performance Analysis</h1>
+    <p class="text-muted">Advanced player analytics powered by Sleeper performance data</p>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="row mb-3">
+  <div class="col-12">
+    <%= link_to "← Back to Dashboard", sleeper_analytics_path, class: "btn btn-outline-secondary" %>
+  </div>
+</div>
+
+<!-- Data Status -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card <%= @player_stats_available ? 'border-success' : 'border-warning' %>">
+      <div class="card-header <%= @player_stats_available ? 'bg-success text-white' : 'bg-warning text-dark' %>">
+        <h5 class="mb-0">📊 Player Stats Data Status</h5>
+      </div>
+      <div class="card-body">
+        <% if @player_stats_available %>
+          <p><strong>✅ Player Stats Available!</strong></p>
+          <div class="row">
+            <div class="col-md-3">
+              <strong><%= @player_stats_summary[:total_records] %></strong><br>
+              <small class="text-muted">Total Player Records</small>
+            </div>
+            <div class="col-md-3">
+              <strong><%= @player_stats_summary[:seasons_covered].join(', ') %></strong><br>
+              <small class="text-muted">Seasons Available</small>
+            </div>
+            <div class="col-md-3">
+              <strong><%= @player_stats_summary[:positions_covered].join(', ') %></strong><br>
+              <small class="text-muted">Positions Covered</small>
+            </div>
+            <div class="col-md-3">
+              <strong><%= @player_stats_summary[:top_scorer][:name] rescue 'N/A' %></strong><br>
+              <small class="text-muted">Top PPR Scorer</small>
+            </div>
+          </div>
+        <% else %>
+          <p><strong>⚠️ No Player Stats Data Found</strong></p>
+          <p>To unlock advanced player analytics, you'll need to import player stats data first.</p>
+          <%= link_to "Import Player Stats", sleeper_player_stats_imports_path, 
+              class: "btn btn-primary" %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if @player_stats_available %>
+  <!-- Top Performers by Position -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5>🏆 Top Performers by Position</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <% @top_performers_by_position.each do |position, players| %>
+              <div class="col-md-6 col-lg-3 mb-3">
+                <h6><%= position %></h6>
+                <% players.first(5).each_with_index do |player, index| %>
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="<%= index == 0 ? 'fw-bold' : '' %>">
+                      <small><%= player.player_name %></small>
+                    </span>
+                    <span class="badge bg-<%= index == 0 ? 'success' : 'secondary' %>">
+                      <%= player.fantasy_points_ppr.round(1) %>
+                    </span>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player Search and Analysis -->
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h5>🔍 Player Performance Lookup</h5>
+        </div>
+        <div class="card-body">
+          <%= form_with url: player_performance_sleeper_analytics_path, method: :get, local: true do |form| %>
+            <div class="row">
+              <div class="col-md-6">
+                <%= form.text_field :player_search, 
+                    value: params[:player_search],
+                    placeholder: "Search player name...",
+                    class: "form-control" %>
+              </div>
+              <div class="col-md-3">
+                <%= form.select :position_filter, 
+                    options_for_select([['All Positions', '']] + 
+                      SleeperPlayerStat::SKILL_POSITIONS.map { |p| [p, p] }, 
+                      params[:position_filter]),
+                    {}, 
+                    { class: "form-select" } %>
+              </div>
+              <div class="col-md-3">
+                <%= form.submit "Search", class: "btn btn-primary w-100" %>
+              </div>
+            </div>
+          <% end %>
+          
+          <% if @searched_players&.any? %>
+            <hr>
+            <h6>Search Results:</h6>
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Player</th>
+                    <th>Position</th>
+                    <th>Team</th>
+                    <th>Season</th>
+                    <th>PPR Points</th>
+                    <th>Games</th>
+                    <th>Avg/Game</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @searched_players.each do |player| %>
+                    <tr>
+                      <td><strong><%= player.player_name %></strong></td>
+                      <td><span class="badge bg-secondary"><%= player.position %></span></td>
+                      <td><%= player.team %></td>
+                      <td><%= player.season %></td>
+                      <td><%= player.season_total_points(:ppr).round(1) %></td>
+                      <td><%= player.games_played_in_season %></td>
+                      <td><%= player.average_points_per_game(:ppr) %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% elsif params[:player_search].present? %>
+            <hr>
+            <div class="alert alert-info">
+              No players found matching "<%= params[:player_search] %>". Try a different search term.
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5>📈 Season Analysis</h5>
+        </div>
+        <div class="card-body">
+          <% if @consistency_leaders&.any? %>
+            <h6>Most Consistent Players</h6>
+            <small class="text-muted">Lowest scoring variance</small>
+            <% @consistency_leaders.first(5).each do |player| %>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span><small><%= player[:name] %></small></span>
+                <span class="badge bg-success"><%= player[:consistency] %></span>
+              </div>
+            <% end %>
+          <% end %>
+          
+          <hr>
+          
+          <% if @breakout_candidates&.any? %>
+            <h6>Potential Breakouts</h6>
+            <small class="text-muted">Trending upward</small>
+            <% @breakout_candidates.first(5).each do |player| %>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span><small><%= player.player_name %></small></span>
+                <span class="badge bg-warning"><%= player.position %></span>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Position Scarcity Analysis -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5>📊 Position Scarcity Analysis</h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted">Fantasy point distribution and depth at each position</p>
+          <div class="row">
+            <% @position_scarcity.each do |position, stats| %>
+              <div class="col-md-3 mb-3">
+                <div class="card bg-light">
+                  <div class="card-body text-center">
+                    <h6><%= position %></h6>
+                    <div class="row">
+                      <div class="col-6">
+                        <strong><%= stats[:top_tier] %></strong><br>
+                        <small class="text-muted">Elite (Top 12)</small>
+                      </div>
+                      <div class="col-6">
+                        <strong><%= stats[:startable] %></strong><br>
+                        <small class="text-muted">Startable (Top 24)</small>
+                      </div>
+                    </div>
+                    <hr class="my-2">
+                    <div class="row">
+                      <div class="col-6">
+                        <strong><%= stats[:avg_top_12].round(1) %></strong><br>
+                        <small class="text-muted">Avg Top 12</small>
+                      </div>
+                      <div class="col-6">
+                        <strong><%= stats[:dropoff].round(1) %>%</strong><br>
+                        <small class="text-muted">Tier Dropoff</small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<!-- 2025 Draft Strategy -->
+<div class="row">
+  <div class="col-12">
+    <div class="card border-success">
+      <div class="card-header bg-success text-white">
+        <h5>🎯 2025 Draft Strategy: Player Insights</h5>
+      </div>
+      <div class="card-body">
+        <% if @player_stats_available %>
+          <div class="row">
+            <div class="col-md-6">
+              <h6>📈 Draft Recommendations</h6>
+              <ul>
+                <li><strong>Position Priority:</strong> <%= @draft_strategy[:position_priority] %></li>
+                <li><strong>Scarcity Focus:</strong> Target <%= @draft_strategy[:scarce_positions].join(', ') %> early</li>
+                <li><strong>Value Picks:</strong> Look for consistent players in rounds 6-10</li>
+                <li><strong>Avoid:</strong> High-variance players in early rounds</li>
+              </ul>
+            </div>
+            
+            <div class="col-md-6">
+              <h6>💡 Key Insights</h6>
+              <ul>
+                <li><strong>Top Scorer:</strong> <%= @player_stats_summary[:top_scorer][:name] rescue 'N/A' %> 
+                  (<%= @player_stats_summary[:top_scorer][:points]&.round(1) rescue 'N/A' %> PPR)</li>
+                <li><strong>Breakout Season:</strong> Monitor year-over-year improvements</li>
+                <li><strong>Consistency Wins:</strong> Favor steady producers over boom/bust</li>
+                <li><strong>Position Depth:</strong> Use scarcity analysis for draft timing</li>
+              </ul>
+            </div>
+          </div>
+        <% else %>
+          <p>Import player stats data to unlock personalized draft strategy recommendations based on historical performance analysis.</p>
+          <%= link_to "Import Player Stats Now", sleeper_player_stats_imports_path, 
+              class: "btn btn-success" %>
+        <% end %>
+        
+        <div class="mt-3">
+          <%= link_to draft_analysis_sleeper_analytics_path, class: "btn btn-primary me-2" do %>
+            ← Back to Draft Analysis
+          <% end %>
+          <%= link_to team_performance_sleeper_analytics_path, class: "btn btn-outline-primary" do %>
+            View Team Performance →
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,358 @@
+<div class="row">
+  <div class="col-12">
+    <h1>🎯 Draft Analysis & 2025 Preparation</h1>
+    <p class="text-muted">Analyze historical draft performance to optimize your 2025 strategy</p>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="row mb-3">
+  <div class="col-12">
+    <%= link_to "← Back to Dashboard", sleeper_analytics_path, class: "btn btn-outline-secondary" %>
+  </div>
+</div>
+
+<!-- Draft Summary -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5>Draft Overview</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-3">
+            <div class="card bg-light">
+              <div class="card-body text-center">
+                <h4><%= @drafts.count %></h4>
+                <p class="mb-0">Total Drafts</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-light">
+              <div class="card-body text-center">
+                <h4><%= @drafts.joins(:sleeper_draft_picks).count %></h4>
+                <p class="mb-0">Total Picks</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-light">
+              <div class="card-body text-center">
+                <h4><%= @drafts.first&.sleeper_draft_picks&.maximum(:round) || 0 %></h4>
+                <p class="mb-0">Rounds per Draft</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-light">
+              <div class="card-body text-center">
+                <h4><%= @drafts.first&.draft_type&.humanize || "N/A" %></h4>
+                <p class="mb-0">Draft Type</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Season-by-Season Draft Performance -->
+<% @draft_performance.each do |season, performance| %>
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5><%= season %> Season - Draft Performance Analysis</h5>
+        </div>
+        <div class="card-body">
+          
+          <!-- Top Performers -->
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <h6>🏆 Top 3 Teams (Total Points)</h6>
+              <div class="list-group">
+                <% performance.first(3).each_with_index do |team, index| %>
+                  <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong><%= "#{index + 1}. #{team[:roster_owner]}" %></strong>
+                      <br>
+                      <small class="text-muted">Avg: <%= team[:avg_points] %> pts/week</small>
+                    </div>
+                    <span class="badge bg-success rounded-pill"><%= team[:total_points].round(1) %> pts</span>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <h6>📉 Bottom 3 Teams (Total Points)</h6>
+              <div class="list-group">
+                <% performance.last(3).reverse.each_with_index do |team, index| %>
+                  <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong><%= "#{performance.length - 2 + index}. #{team[:roster_owner]}" %></strong>
+                      <br>
+                      <small class="text-muted">Avg: <%= team[:avg_points] %> pts/week</small>
+                    </div>
+                    <span class="badge bg-danger rounded-pill"><%= team[:total_points].round(1) %> pts</span>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+
+          <!-- Draft Performance Table -->
+          <div class="table-responsive">
+            <table class="table table-sm table-striped">
+              <thead>
+                <tr>
+                  <th>Team</th>
+                  <th>Total Points</th>
+                  <th>Avg Points/Week</th>
+                  <th>Performance Rank</th>
+                  <th>Draft Success</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% performance.each_with_index do |team, index| %>
+                  <tr class="<%= 'table-success' if index < 3 %>
+                           <%= 'table-danger' if index >= performance.length - 3 %>">
+                    <td>
+                      <strong><%= team[:roster_owner] %></strong>
+                    </td>
+                    <td><%= team[:total_points].round(1) %></td>
+                    <td><%= team[:avg_points] %></td>
+                    <td>
+                      <span class="badge bg-<%= index < 4 ? 'success' : index < 8 ? 'warning' : 'danger' %>">
+                        #<%= index + 1 %>
+                      </span>
+                    </td>
+                    <td>
+                      <% success_rating = index < 4 ? 'Excellent' : index < 8 ? 'Good' : 'Poor' %>
+                      <span class="badge bg-<%= index < 4 ? 'success' : index < 8 ? 'warning' : 'danger' %>">
+                        <%= success_rating %>
+                      </span>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<% if @player_stats_available %>
+  <!-- Enhanced Draft Analysis with Player Performance -->
+  <div class="row mt-4 mb-4">
+    <div class="col-12">
+      <div class="card border-success">
+        <div class="card-header bg-success text-white">
+          <h5>📊 Draft Performance vs Reality</h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted">Compare draft position to actual player performance using Sleeper stats data</p>
+          
+          <!-- Steals and Busts -->
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <h6>🎯 Biggest Steals</h6>
+              <% if @steal_and_bust_analysis[:steals].any? %>
+                <div class="table-responsive">
+                  <table class="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Player</th>
+                        <th>Round.Pick</th>
+                        <th>Value +/-</th>
+                        <th>Owner</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% @steal_and_bust_analysis[:steals].first(5).each do |steal| %>
+                        <tr>
+                          <td>
+                            <strong><%= steal[:player_name] %></strong><br>
+                            <small class="text-muted"><%= steal[:position] %> • <%= steal[:season] %></small>
+                          </td>
+                          <td><%= steal[:round] %>.<%= steal[:pick_no] %></td>
+                          <td><span class="badge bg-success">+<%= steal[:value_diff].round(1) %></span></td>
+                          <td><%= steal[:owner] %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              <% else %>
+                <p class="text-muted">No steals data available yet. Import player stats to unlock this analysis.</p>
+              <% end %>
+            </div>
+            
+            <div class="col-md-6">
+              <h6>💥 Biggest Busts</h6>
+              <% if @steal_and_bust_analysis[:busts].any? %>
+                <div class="table-responsive">
+                  <table class="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Player</th>
+                        <th>Round.Pick</th>
+                        <th>Value +/-</th>
+                        <th>Owner</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% @steal_and_bust_analysis[:busts].first(5).each do |bust| %>
+                        <tr>
+                          <td>
+                            <strong><%= bust[:player_name] %></strong><br>
+                            <small class="text-muted"><%= bust[:position] %> • <%= bust[:season] %></small>
+                          </td>
+                          <td><%= bust[:round] %>.<%= bust[:pick_no] %></td>
+                          <td><span class="badge bg-danger"><%= bust[:value_diff].round(1) %></span></td>
+                          <td><%= bust[:owner] %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              <% else %>
+                <p class="text-muted">No busts data available yet. Import player stats to unlock this analysis.</p>
+              <% end %>
+            </div>
+          </div>
+          
+          <!-- Position Draft Trends -->
+          <div class="row">
+            <div class="col-12">
+              <h6>📈 Position Draft Trends & Success Rates</h6>
+              <div class="row">
+                <% @position_draft_trends.each do |position, trends| %>
+                  <div class="col-md-3 mb-3">
+                    <div class="card bg-light">
+                      <div class="card-body text-center">
+                        <h6><%= position %></h6>
+                        <div class="row">
+                          <div class="col-6">
+                            <strong><%= trends[:avg_draft_round].round(1) %></strong><br>
+                            <small class="text-muted">Avg Round</small>
+                          </div>
+                          <div class="col-6">
+                            <strong><%= trends[:avg_points].round(1) %></strong><br>
+                            <small class="text-muted">Avg Points</small>
+                          </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row">
+                          <div class="col-6">
+                            <strong><%= trends[:early_round_success] %>%</strong><br>
+                            <small class="text-muted">Early Success</small>
+                          </div>
+                          <div class="col-6">
+                            <strong><%= trends[:total_drafted] %></strong><br>
+                            <small class="text-muted">Total Drafted</small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+          
+          <div class="alert alert-info">
+            <strong>💡 Analysis Notes:</strong> 
+            <ul class="mb-0">
+              <li>Steals = Players who scored 50+ points above expected for their draft position</li>
+              <li>Busts = Players who scored 50+ points below expected for their draft position</li>
+              <li>Early Success = Players drafted in rounds 1-3 who scored 150+ fantasy points</li>
+              <li>Expected values based on historical draft position performance</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<% else %>
+  <!-- Placeholder for when player stats aren't available -->
+  <div class="row mt-4 mb-4">
+    <div class="col-12">
+      <div class="card border-info">
+        <div class="card-header bg-info text-white">
+          <h5>📊 Enhanced Draft Analysis Available</h5>
+        </div>
+        <div class="card-body">
+          <p>Unlock advanced draft analysis by importing player performance data:</p>
+          <ul>
+            <li><strong>Draft Steals & Busts:</strong> See which picks provided best/worst value</li>
+            <li><strong>Position Success Rates:</strong> Analyze early round hit rates by position</li>
+            <li><strong>Value Analysis:</strong> Compare actual vs expected performance by draft slot</li>
+            <li><strong>Historical Context:</strong> Data-driven insights for 2025 draft preparation</li>
+          </ul>
+          
+          <%= link_to "Import Player Stats", sleeper_player_stats_imports_path, 
+              class: "btn btn-info" %>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<!-- 2025 Draft Insights -->
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card border-warning">
+      <div class="card-header bg-warning text-dark">
+        <h5>🚀 2025 Draft Strategy Insights</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-4">
+            <h6>📊 League Patterns</h6>
+            <ul class="list-unstyled">
+              <li>• <strong>Draft Type:</strong> <%= @drafts.first&.draft_type&.humanize || "Auction" %></li>
+              <li>• <strong>League Size:</strong> 12 teams</li>
+              <li>• <strong>Draft Rounds:</strong> <%= @drafts.first&.sleeper_draft_picks&.maximum(:round) || 16 %></li>
+              <li>• <strong>Historical Data:</strong> <%= @drafts.count %> seasons</li>
+            </ul>
+          </div>
+          
+          <div class="col-md-4">
+            <h6>🎯 Success Factors</h6>
+            <ul class="list-unstyled">
+              <li>• Early draft success correlates with season performance</li>
+              <li>• Consistency in scoring is key to winning</li>
+              <li>• Monitor draft position impact on final standings</li>
+              <li>• Analyze waiver wire activity post-draft</li>
+            </ul>
+          </div>
+          
+          <div class="col-md-4">
+            <h6>💡 2025 Recommendations</h6>
+            <ul class="list-unstyled">
+              <li>• Study your most successful draft years</li>
+              <li>• Identify positional value trends</li>
+              <li>• Analyze league mate draft tendencies</li>
+              <li>• Prepare backup strategies for different draft positions</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="mt-3">
+          <%= link_to team_performance_sleeper_analytics_path, class: "btn btn-warning me-2" do %>
+            View Team Performance Trends →
+          <% end %>
+          <%= link_to player_performance_sleeper_analytics_path, class: "btn btn-outline-warning" do %>
+            Analyze Player Performance →
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

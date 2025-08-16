@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  sleeper_draft: one
+  pick_no: 1
+  round: 1
+  sleeper_roster: one
+  sleeper_player_id: MyString
+  metadata: 
+
+two:
+  sleeper_draft: two
+  pick_no: 1
+  round: 1
+  sleeper_roster: two
+  sleeper_player_id: MyString
+  metadata: 

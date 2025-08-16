@@ -1,0 +1,225 @@
+<div class="row">
+  <div class="col-12">
+    <h1>💼 Transaction Analysis</h1>
+    <p class="text-muted">Trades, waivers, and roster moves across all seasons</p>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="row mb-3">
+  <div class="col-12">
+    <%= link_to "← Back to Dashboard", sleeper_analytics_path, class: "btn btn-outline-secondary" %>
+  </div>
+</div>
+
+<!-- Overall Transaction Stats -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card bg-primary text-white">
+      <div class="card-body text-center">
+        <h4><%= @transaction_stats[:total_transactions] %></h4>
+        <p class="mb-0">Total Transactions</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-success text-white">
+      <div class="card-body text-center">
+        <h4><%= @transaction_stats[:most_active_week] || 'N/A' %></h4>
+        <p class="mb-0">Most Active Week</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-info text-white">
+      <div class="card-body text-center">
+        <h4><%= @transaction_stats[:transactions_by_type]['trade']&.to_i || 0 %></h4>
+        <p class="mb-0">Total Trades</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-warning text-dark">
+      <div class="card-body text-center">
+        <h4><%= @transaction_stats[:transactions_by_type]['waiver']&.to_i || 0 %></h4>
+        <p class="mb-0">Waiver Claims</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Transaction Types Breakdown -->
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5>📊 Transaction Types</h5>
+      </div>
+      <div class="card-body">
+        <% @transaction_stats[:transactions_by_type].each do |type, count| %>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-secondary"><%= type.humanize %></span>
+            <strong><%= count %></strong>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5>📅 Transactions by Season</h5>
+      </div>
+      <div class="card-body">
+        <% @transaction_stats[:transactions_by_season].sort.reverse.each do |season, count| %>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-primary"><%= season %></span>
+            <strong><%= count %></strong>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- User Activity Analysis -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5>👥 Most Active Managers</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Manager</th>
+                <th>Total Transactions</th>
+                <th>Avg per Season</th>
+                <th>Activity Level</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @transaction_trends.to_a.first(10).each_with_index do |(user, data), index| %>
+                <tr>
+                  <td>
+                    <span class="badge bg-<%= index < 3 ? 'success' : index < 6 ? 'warning' : 'secondary' %>">
+                      #<%= index + 1 %>
+                    </span>
+                  </td>
+                  <td><strong><%= user %></strong></td>
+                  <td><%= data[:total_transactions] %></td>
+                  <td><%= data[:avg_transactions_per_season].round(1) %></td>
+                  <td>
+                    <% activity_level = data[:avg_transactions_per_season] %>
+                    <span class="badge bg-<%= activity_level > 15 ? 'danger' : activity_level > 8 ? 'warning' : 'success' %>">
+                      <%= activity_level > 15 ? 'Very Active' : activity_level > 8 ? 'Active' : 'Conservative' %>
+                    </span>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Individual Manager Breakdown -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5>🔍 Transaction Breakdown by Manager</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <% @transaction_trends.to_a.each_slice((@transaction_trends.size.to_f / 2).ceil).each do |column| %>
+            <div class="col-md-6">
+              <% column.each do |user, data| %>
+                <div class="card mb-3">
+                  <div class="card-header bg-light">
+                    <h6 class="mb-0"><%= user %></h6>
+                  </div>
+                  <div class="card-body py-2">
+                    <div class="row text-center">
+                      <div class="col-6">
+                        <small class="text-muted">Total</small><br>
+                        <strong><%= data[:total_transactions] %></strong>
+                      </div>
+                      <div class="col-6">
+                        <small class="text-muted">Per Season</small><br>
+                        <strong><%= data[:avg_transactions_per_season].round(1) %></strong>
+                      </div>
+                    </div>
+                    <hr class="my-2">
+                    <div class="row">
+                      <% data[:transactions_by_type].each do |type, count| %>
+                        <div class="col-4 text-center">
+                          <small class="text-muted"><%= type.humanize %></small><br>
+                          <span class="badge bg-secondary"><%= count %></span>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2025 Draft Strategy Insights -->
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card border-success">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0">🎯 2025 Draft Strategy: Transaction Patterns</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <h6>📈 Manager Tendencies</h6>
+            <% most_active = @transaction_trends.to_a.first(3) %>
+            <% least_active = @transaction_trends.to_a.last(3).reverse %>
+            
+            <p><strong>Most Active Managers:</strong></p>
+            <ul>
+              <% most_active.each do |user, data| %>
+                <li><strong><%= user %></strong> - <%= data[:avg_transactions_per_season].round(1) %> moves/season</li>
+              <% end %>
+            </ul>
+            
+            <p><strong>Conservative Managers:</strong></p>
+            <ul>
+              <% least_active.each do |user, data| %>
+                <li><strong><%= user %></strong> - <%= data[:avg_transactions_per_season].round(1) %> moves/season</li>
+              <% end %>
+            </ul>
+          </div>
+          
+          <div class="col-md-6">
+            <h6>💡 Strategic Insights</h6>
+            <ul>
+              <li><strong>Trade Partners:</strong> Target active managers who frequently trade</li>
+              <li><strong>Waiver Wire:</strong> <%= @transaction_stats[:transactions_by_type]['waiver'] || 0 %> total claims suggest competitive waiver activity</li>
+              <li><strong>Season Patterns:</strong> Track which weeks have highest transaction activity</li>
+              <li><strong>Conservative Targets:</strong> Conservative managers may hold valuable players longer</li>
+            </ul>
+            
+            <div class="alert alert-info">
+              <strong>🎲 Draft Tip:</strong> Consider manager transaction history when evaluating potential trades and assessing roster construction strategies.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

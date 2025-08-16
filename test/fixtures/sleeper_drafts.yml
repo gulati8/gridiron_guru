@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  sleeper_draft_id: MyString
+  sleeper_league: one
+  type: 
+  status: MyString
+  settings: 
+  metadata: 
+
+two:
+  sleeper_draft_id: MyString
+  sleeper_league: two
+  type: 
+  status: MyString
+  settings: 
+  metadata: 

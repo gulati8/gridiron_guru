@@ -4,12 +4,12 @@ class ProFootballReferenceImportService
   attr_accessor :season, :stat_type
   
   validates :stat_type, presence: true, inclusion: { in: %w[passing rushing receiving] }
-  validates :season, presence: true, inclusion: { in: (2020..Date.today.year).map(&:to_s) }
+  validates :season, presence: true, inclusion: { in: (2020..Date.today.year).to_a }
   
   def initialize(stat_type:, season:)
     @stat_type  = stat_type
     @season     = season
-    @errors     = []
+    @custom_errors = []
   end
   
   def call
@@ -23,32 +23,14 @@ class ProFootballReferenceImportService
       true
     rescue => e
       Rails.logger.error "Pro Football Reference Import failed: #{e.message}"
-      @errors << e.message
+      @custom_errors << e.message
       false
     end
   end
   
-  def self.import_from_files(directory_path, season)
-    results = {}
-    
-    %w[QB RB WR TE].each do |position|
-      file_path = File.join(directory_path, "#{position.downcase}.json")
-      
-      if File.exist?(file_path)
-        service = new(file_path: file_path, position: position, season: season)
-        results[position] = service.call
-        results["#{position}_errors"] = service.errors if service.errors.any?
-      else
-        results[position] = false
-        results["#{position}_errors"] = ["File not found: #{file_path}"]
-      end
-    end
-    
-    results
-  end
   
-  def errors
-    @errors
+  def custom_errors
+    @custom_errors
   end
   
   private
@@ -71,8 +53,9 @@ class ProFootballReferenceImportService
     # Create or find player
     player = find_or_create_player(player_data)
     
-    # Import season stats based on position
-    case player.position
+    # Import season stats based on position from the scraped data
+    position = player_data[:position] || player.position
+    case position
     when "QB"
       import_qb_stats(player, player_data)
     when "RB"
@@ -90,16 +73,19 @@ class ProFootballReferenceImportService
     # Try to find by PFR URL first
     player = Player.find_by(pro_football_reference_url: pfr_url)
     
-    # If not found, try by name and position
-    player ||= Player.find_by(name: player_data[:name], position: @position)
+    # If not found, try by name (regardless of position, since positions can change)
+    player ||= Player.find_by(name: player_data[:name])
     
     # Create new player if not found
     player ||= Player.new
     
+    # Map scraped position to primary position for multi-position players
+    mapped_position = map_player_position(player_data[:name], player_data[:position])
+    
     # Update player attributes
     player.assign_attributes(
       name:                       player_data[:name],
-      position:                   player_data[:position],
+      position:                   mapped_position,
       pro_football_reference_url: pfr_url,
       active:                     true
     )
@@ -112,7 +98,7 @@ class ProFootballReferenceImportService
     season_stats = player_data[:season_stats] || {}
     advanced_stats = player_data[:advanced_stats] || {}
     
-    qb_stats = player.qb_season_stats.find_or_initialize_by(season: @season)
+    qb_stats = player.qb_season_stats.find_or_initialize_by(season: season)
     
     qb_stats.assign_attributes(
       team_abbr: season_stats[:team_name_abbr],
@@ -158,7 +144,7 @@ class ProFootballReferenceImportService
     season_stats = player_data[:season_stats] || {}
     advanced_stats = player_data[:advanced_stats] || {}
     
-    rb_stats = player.rb_season_stats.find_or_initialize_by(season: @season)
+    rb_stats = player.rb_season_stats.find_or_initialize_by(season: season)
     
     rb_stats.assign_attributes(
       team_abbr: season_stats[:team_name_abbr],
@@ -201,7 +187,7 @@ class ProFootballReferenceImportService
     season_stats = player_data[:season_stats] || {}
     advanced_stats = player_data[:advanced_stats] || {}
     
-    wr_stats = player.wr_season_stats.find_or_initialize_by(season: @season)
+    wr_stats = player.wr_season_stats.find_or_initialize_by(season: season)
     
     wr_stats.assign_attributes(
       team_abbr: season_stats[:team_name_abbr],
@@ -244,7 +230,7 @@ class ProFootballReferenceImportService
     season_stats = player_data[:season_stats] || {}
     advanced_stats = player_data[:advanced_stats] || {}
     
-    te_stats = player.te_season_stats.find_or_initialize_by(season: @season)
+    te_stats = player.te_season_stats.find_or_initialize_by(season: season)
     
     te_stats.assign_attributes(
       team_abbr: season_stats[:team_name_abbr],
@@ -363,6 +349,18 @@ class ProFootballReferenceImportService
     # This would need team-level data to calculate properly
     # For now, just store if it"s available in the data
     advanced_stats[:target_share]
+  end
+  
+  def map_player_position(player_name, scraped_position)
+    # Handle special cases for multi-position players
+    case player_name
+    when 'Taysom Hill'
+      'QB'  # He plays multiple positions but QB is where he gets most stats
+    when 'Cordarrelle Patterson'
+      'RB'  # Primarily RB despite WR background
+    else
+      scraped_position
+    end
   end
   
   def safe_to_decimal(value)

@@ -1,18 +1,18 @@
 class ProFootballReferenceImportJob < ApplicationJob
   queue_as :default
+  retry_on StandardError, attempts: 1
   
-  def perform(file_path, position, season)
+  def perform(stat_type, season)
     service = ProFootballReferenceImportService.new(
-      file_path: file_path,
-      position: position,
+      stat_type: stat_type,
       season: season
     )
 
     if service.call
-      Rails.logger.info "Successfully imported #{position} data for #{season}"
+      Rails.logger.info "Successfully imported #{stat_type} data for #{season}"
     else
-      Rails.logger.error "Failed to import #{position} data: #{service.errors.join(', ')}"
-      raise "Import failed: #{service.errors.join(', ')}"
+      Rails.logger.error "Failed to import #{stat_type} data: #{service.custom_errors.join(', ')}"
+      raise "Import failed: #{service.custom_errors.join(', ')}"
     end
   end
 end

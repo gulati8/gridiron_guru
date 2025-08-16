@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_07_27_184339) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_02_210654) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -189,6 +189,162 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_27_184339) do
     t.index ["team_abbr"], name: "index_rb_weekly_stats_on_team_abbr"
   end
 
+  create_table "sleeper_draft_picks", force: :cascade do |t|
+    t.bigint "sleeper_draft_id", null: false
+    t.integer "pick_no", null: false
+    t.integer "round", null: false
+    t.bigint "sleeper_roster_id", null: false
+    t.string "sleeper_player_id", null: false
+    t.json "metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["round"], name: "index_sleeper_draft_picks_on_round"
+    t.index ["sleeper_draft_id", "pick_no"], name: "index_sleeper_draft_picks_on_sleeper_draft_id_and_pick_no", unique: true
+    t.index ["sleeper_draft_id"], name: "index_sleeper_draft_picks_on_sleeper_draft_id"
+    t.index ["sleeper_player_id"], name: "index_sleeper_draft_picks_on_sleeper_player_id"
+    t.index ["sleeper_roster_id"], name: "index_sleeper_draft_picks_on_sleeper_roster_id"
+  end
+
+  create_table "sleeper_drafts", force: :cascade do |t|
+    t.string "sleeper_draft_id", null: false
+    t.bigint "sleeper_league_id", null: false
+    t.string "draft_type", null: false
+    t.string "status", null: false
+    t.json "settings"
+    t.json "metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sleeper_draft_id"], name: "index_sleeper_drafts_on_sleeper_draft_id", unique: true
+    t.index ["sleeper_league_id"], name: "index_sleeper_drafts_on_sleeper_league_id"
+    t.index ["status"], name: "index_sleeper_drafts_on_status"
+  end
+
+  create_table "sleeper_leagues", force: :cascade do |t|
+    t.string "sleeper_league_id", null: false
+    t.string "name", null: false
+    t.integer "season", null: false
+    t.integer "total_rosters", null: false
+    t.string "status", null: false
+    t.json "scoring_settings"
+    t.json "roster_positions"
+    t.json "settings"
+    t.string "league_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["season", "status"], name: "index_sleeper_leagues_on_season_and_status"
+    t.index ["season"], name: "index_sleeper_leagues_on_season"
+    t.index ["sleeper_league_id"], name: "index_sleeper_leagues_on_sleeper_league_id", unique: true
+  end
+
+  create_table "sleeper_matchups", force: :cascade do |t|
+    t.bigint "sleeper_league_id", null: false
+    t.integer "week", null: false
+    t.integer "season", null: false
+    t.bigint "sleeper_roster_id", null: false
+    t.decimal "points", precision: 8, scale: 2
+    t.string "opponent_roster_id"
+    t.decimal "opponent_points", precision: 8, scale: 2
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["season"], name: "index_sleeper_matchups_on_season"
+    t.index ["sleeper_league_id", "week", "season"], name: "idx_on_sleeper_league_id_week_season_891ab9cf0a"
+    t.index ["sleeper_league_id"], name: "index_sleeper_matchups_on_sleeper_league_id"
+    t.index ["sleeper_roster_id", "season", "week"], name: "idx_on_sleeper_roster_id_season_week_bb6f23d4fa"
+    t.index ["sleeper_roster_id"], name: "index_sleeper_matchups_on_sleeper_roster_id"
+  end
+
+  create_table "sleeper_player_stats", force: :cascade do |t|
+    t.string "sleeper_player_id", null: false
+    t.string "player_name", null: false
+    t.string "position", null: false
+    t.string "team"
+    t.integer "season", null: false
+    t.integer "week", null: false
+    t.string "season_type", default: "regular", null: false
+    t.json "stats"
+    t.decimal "fantasy_points_standard", precision: 8, scale: 2
+    t.decimal "fantasy_points_half_ppr", precision: 8, scale: 2
+    t.decimal "fantasy_points_ppr", precision: 8, scale: 2
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["fantasy_points_ppr"], name: "index_sleeper_player_stats_on_fantasy_points_ppr"
+    t.index ["position", "season", "week"], name: "index_sleeper_player_stats_on_position_and_season_and_week"
+    t.index ["position"], name: "index_sleeper_player_stats_on_position"
+    t.index ["season", "week", "season_type"], name: "index_sleeper_player_stats_on_season_and_week_and_season_type"
+    t.index ["sleeper_player_id", "season", "week", "season_type"], name: "idx_sleeper_player_stats_unique", unique: true
+    t.index ["sleeper_player_id"], name: "index_sleeper_player_stats_on_sleeper_player_id"
+  end
+
+  create_table "sleeper_players", force: :cascade do |t|
+    t.string "sleeper_player_id", null: false
+    t.string "first_name"
+    t.string "last_name"
+    t.string "full_name"
+    t.string "position"
+    t.string "team"
+    t.integer "years_exp"
+    t.string "height"
+    t.string "weight"
+    t.integer "age"
+    t.string "birth_date"
+    t.string "college"
+    t.string "status"
+    t.json "player_data"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["full_name"], name: "index_sleeper_players_on_full_name"
+    t.index ["position", "team"], name: "index_sleeper_players_on_position_and_team"
+    t.index ["sleeper_player_id"], name: "index_sleeper_players_on_sleeper_player_id", unique: true
+    t.index ["status"], name: "index_sleeper_players_on_status"
+  end
+
+  create_table "sleeper_rosters", force: :cascade do |t|
+    t.string "sleeper_roster_id", null: false
+    t.bigint "sleeper_league_id", null: false
+    t.bigint "sleeper_user_id", null: false
+    t.json "settings"
+    t.text "players"
+    t.integer "wins", default: 0
+    t.integer "losses", default: 0
+    t.integer "ties", default: 0
+    t.integer "total_moves", default: 0
+    t.integer "waiver_position"
+    t.integer "waiver_budget_used", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sleeper_league_id"], name: "index_sleeper_rosters_on_sleeper_league_id"
+    t.index ["sleeper_roster_id", "sleeper_league_id"], name: "idx_on_sleeper_roster_id_sleeper_league_id_f4e944a8ba", unique: true
+    t.index ["sleeper_user_id"], name: "index_sleeper_rosters_on_sleeper_user_id"
+  end
+
+  create_table "sleeper_transactions", force: :cascade do |t|
+    t.string "sleeper_transaction_id", null: false
+    t.bigint "sleeper_league_id", null: false
+    t.string "transaction_type", null: false
+    t.string "status", null: false
+    t.integer "week", null: false
+    t.integer "season", null: false
+    t.json "metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["season"], name: "index_sleeper_transactions_on_season"
+    t.index ["sleeper_league_id", "week", "season"], name: "idx_on_sleeper_league_id_week_season_047050a1b0"
+    t.index ["sleeper_league_id"], name: "index_sleeper_transactions_on_sleeper_league_id"
+    t.index ["sleeper_transaction_id"], name: "index_sleeper_transactions_on_sleeper_transaction_id", unique: true
+    t.index ["transaction_type"], name: "index_sleeper_transactions_on_transaction_type"
+  end
+
+  create_table "sleeper_users", force: :cascade do |t|
+    t.string "sleeper_user_id", null: false
+    t.string "username"
+    t.string "display_name"
+    t.string "avatar"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sleeper_user_id"], name: "index_sleeper_users_on_sleeper_user_id", unique: true
+    t.index ["username"], name: "index_sleeper_users_on_username"
+  end
+
   create_table "te_season_stats", force: :cascade do |t|
     t.bigint "player_id", null: false
     t.integer "season", null: false
@@ -344,6 +500,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_27_184339) do
   add_foreign_key "qb_weekly_stats", "players"
   add_foreign_key "rb_season_stats", "players"
   add_foreign_key "rb_weekly_stats", "players"
+  add_foreign_key "sleeper_draft_picks", "sleeper_drafts"
+  add_foreign_key "sleeper_draft_picks", "sleeper_rosters"
+  add_foreign_key "sleeper_drafts", "sleeper_leagues"
+  add_foreign_key "sleeper_matchups", "sleeper_leagues"
+  add_foreign_key "sleeper_matchups", "sleeper_rosters"
+  add_foreign_key "sleeper_rosters", "sleeper_leagues"
+  add_foreign_key "sleeper_rosters", "sleeper_users"
+  add_foreign_key "sleeper_transactions", "sleeper_leagues"
   add_foreign_key "te_season_stats", "players"
   add_foreign_key "te_weekly_stats", "players"
   add_foreign_key "wr_season_stats", "players"

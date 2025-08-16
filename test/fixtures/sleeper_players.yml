@@ -1,0 +1,33 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  sleeper_player_id: MyString
+  first_name: MyString
+  last_name: MyString
+  full_name: MyString
+  position: MyString
+  team: MyString
+  years_exp: 1
+  height: MyString
+  weight: MyString
+  age: 1
+  birth_date: MyString
+  college: MyString
+  status: MyString
+  player_data: 
+
+two:
+  sleeper_player_id: MyString
+  first_name: MyString
+  last_name: MyString
+  full_name: MyString
+  position: MyString
+  team: MyString
+  years_exp: 1
+  height: MyString
+  weight: MyString
+  age: 1
+  birth_date: MyString
+  college: MyString
+  status: MyString
+  player_data: 

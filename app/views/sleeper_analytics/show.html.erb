@@ -1,0 +1,136 @@
+<div class="row">
+  <div class="col-12">
+    <h1><%= @league.name %> - <%= @league.season %> Season</h1>
+    <p class="text-muted">Detailed league analysis and statistics</p>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="row mb-3">
+  <div class="col-12">
+    <%= link_to "← Back to All Leagues", sleeper_analytics_path, class: "btn btn-outline-secondary" %>
+  </div>
+</div>
+
+<!-- League Stats -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card bg-primary text-white">
+      <div class="card-body text-center">
+        <h4><%= @league_stats[:total_weeks] %></h4>
+        <p class="mb-0">Weeks Played</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-success text-white">
+      <div class="card-body text-center">
+        <h4><%= @league_stats[:avg_points_per_week] %></h4>
+        <p class="mb-0">Avg Points/Week</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-info text-white">
+      <div class="card-body text-center">
+        <h4><%= @league_stats[:highest_score] %></h4>
+        <p class="mb-0">Highest Score</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-warning text-dark">
+      <div class="card-body text-center">
+        <h4><%= @league_stats[:total_transactions] %></h4>
+        <p class="mb-0">Transactions</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Team Standings -->
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5>Team Standings</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Team</th>
+                <th>Record</th>
+                <th>Total Points</th>
+                <th>Avg Points</th>
+                <th>Win %</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @rosters.sort_by { |r| [-r.sleeper_matchups.sum(:points), -r.wins] }.each_with_index do |roster, index| %>
+                <tr>
+                  <td>
+                    <span class="badge bg-<%= index < 4 ? 'success' : index < 8 ? 'warning' : 'danger' %>">
+                      #<%= index + 1 %>
+                    </span>
+                  </td>
+                  <td><strong><%= roster.sleeper_user.display_name %></strong></td>
+                  <td>
+                    <%= roster.wins %>-<%= roster.losses %>
+                    <% if roster.ties > 0 %>-<%= roster.ties %><% end %>
+                  </td>
+                  <td><%= roster.sleeper_matchups.sum(:points).round(1) %></td>
+                  <td><%= roster.sleeper_matchups.average(:points)&.round(2) || 0 %></td>
+                  <td>
+                    <span class="badge bg-<%= roster.win_percentage > 0.6 ? 'success' : roster.win_percentage > 0.4 ? 'warning' : 'danger' %>">
+                      <%= (roster.win_percentage * 100).round(1) %>%
+                    </span>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5>Draft Information</h5>
+      </div>
+      <div class="card-body">
+        <% if @draft %>
+          <p><strong>Type:</strong> <%= @draft.draft_type.humanize %></p>
+          <p><strong>Status:</strong> <%= @draft.status.humanize %></p>
+          <p><strong>Total Picks:</strong> <%= @draft.sleeper_draft_picks.count %></p>
+          <p><strong>Rounds:</strong> <%= @draft.sleeper_draft_picks.maximum(:round) %></p>
+        <% else %>
+          <p class="text-muted">No draft data available</p>
+        <% end %>
+      </div>
+    </div>
+    
+    <div class="card mt-3">
+      <div class="card-header">
+        <h5>Recent Activity</h5>
+      </div>
+      <div class="card-body">
+        <% if @recent_transactions.any? %>
+          <% @recent_transactions.first(5).each do |transaction| %>
+            <div class="mb-2">
+              <small class="text-muted">Week <%= transaction.week %></small>
+              <br>
+              <strong><%= transaction.transaction_type.humanize %></strong>
+            </div>
+          <% end %>
+        <% else %>
+          <p class="text-muted">No recent transactions</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

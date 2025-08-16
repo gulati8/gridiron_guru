@@ -1,0 +1,19 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  sleeper_transaction_id: MyString
+  sleeper_league: one
+  transaction_type: MyString
+  status: MyString
+  week: 1
+  season: 1
+  metadata: 
+
+two:
+  sleeper_transaction_id: MyString
+  sleeper_league: two
+  transaction_type: MyString
+  status: MyString
+  week: 1
+  season: 1
+  metadata: 

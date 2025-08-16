@@ -1,0 +1,27 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  sleeper_roster_id: MyString
+  sleeper_league: one
+  sleeper_user: one
+  settings: 
+  players: MyText
+  wins: 1
+  losses: 1
+  ties: 1
+  total_moves: 1
+  waiver_position: 1
+  waiver_budget_used: 1
+
+two:
+  sleeper_roster_id: MyString
+  sleeper_league: two
+  sleeper_user: two
+  settings: 
+  players: MyText
+  wins: 1
+  losses: 1
+  ties: 1
+  total_moves: 1
+  waiver_position: 1
+  waiver_budget_used: 1

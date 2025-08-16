@@ -1,0 +1,191 @@
+<div class="row">
+  <div class="col-12">
+    <h1>📊 Import Sleeper Player Stats</h1>
+    <p class="text-muted">Import weekly and seasonal player performance data from Sleeper API</p>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="row mb-3">
+  <div class="col-12">
+    <%= link_to "← Back to Imports", imports_path, class: "btn btn-outline-secondary" %>
+  </div>
+</div>
+
+<!-- Import Options -->
+<div class="row">
+  <!-- Single Week Import -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5>🗓️ Import Single Week</h5>
+      </div>
+      <div class="card-body">
+        <%= form_with url: import_sleeper_player_stats_imports_path, method: :post, local: true do |form| %>
+          <div class="mb-3">
+            <%= form.label :season, class: "form-label" %>
+            <%= form.number_field :season, 
+                value: Date.current.year, 
+                min: 2009, 
+                max: Date.current.year + 1,
+                class: "form-control",
+                required: true %>
+            <div class="form-text">NFL season year (2009-<%= Date.current.year + 1 %>)</div>
+          </div>
+          
+          <div class="mb-3">
+            <%= form.label :week, class: "form-label" %>
+            <%= form.number_field :week, 
+                min: 1, 
+                max: 18,
+                class: "form-control",
+                required: true %>
+            <div class="form-text">Week number (1-18)</div>
+          </div>
+          
+          <div class="mb-3">
+            <%= form.label :season_type, class: "form-label" %>
+            <%= form.select :season_type, 
+                options_for_select([
+                  ['Regular Season', 'regular'],
+                  ['Playoffs', 'post']
+                ], 'regular'),
+                {}, 
+                { class: "form-select" } %>
+          </div>
+          
+          <%= form.submit "Import Week Stats", class: "btn btn-primary" %>
+        <% end %>
+        
+        <hr>
+        
+        <h6>📈 Season Totals</h6>
+        <p class="text-muted small">Import season-long totals instead of weekly data</p>
+        <%= form_with url: import_sleeper_player_stats_imports_path, method: :post, local: true do |form| %>
+          <div class="row">
+            <div class="col-8">
+              <%= form.number_field :season, 
+                  value: Date.current.year, 
+                  min: 2009, 
+                  max: Date.current.year + 1,
+                  class: "form-control",
+                  placeholder: "Season",
+                  required: true %>
+            </div>
+            <div class="col-4">
+              <%= form.submit "Import Season", class: "btn btn-outline-primary" %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Bulk Import -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5>📦 Bulk Import Multiple Weeks</h5>
+      </div>
+      <div class="card-body">
+        <%= form_with url: bulk_import_sleeper_player_stats_imports_path, method: :post, local: true do |form| %>
+          <div class="mb-3">
+            <%= form.label :season, class: "form-label" %>
+            <%= form.number_field :season, 
+                value: Date.current.year, 
+                min: 2009, 
+                max: Date.current.year + 1,
+                class: "form-control",
+                required: true %>
+            <div class="form-text">NFL season year</div>
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-6">
+              <%= form.label :start_week, "Start Week", class: "form-label" %>
+              <%= form.number_field :start_week, 
+                  value: 1,
+                  min: 1, 
+                  max: 18,
+                  class: "form-control",
+                  required: true %>
+            </div>
+            <div class="col-6">
+              <%= form.label :end_week, "End Week", class: "form-label" %>
+              <%= form.number_field :end_week, 
+                  value: 18,
+                  min: 1, 
+                  max: 18,
+                  class: "form-control",
+                  required: true %>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <%= form.label :season_type, class: "form-label" %>
+            <%= form.select :season_type, 
+                options_for_select([
+                  ['Regular Season', 'regular'],
+                  ['Playoffs', 'post']
+                ], 'regular'),
+                {}, 
+                { class: "form-select" } %>
+          </div>
+          
+          <%= form.submit "Import Multiple Weeks", class: "btn btn-success" %>
+        <% end %>
+        
+        <div class="alert alert-info mt-3">
+          <small>
+            <strong>⚠️ Note:</strong> Bulk imports may take significant time due to API rate limiting. 
+            Each week requires a separate API call with delays between requests.
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recommended Import Strategy -->
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card border-success">
+      <div class="card-header bg-success text-white">
+        <h5>🎯 Recommended Import Strategy</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <h6>🏈 For Historical Analysis</h6>
+            <ol>
+              <li>Import seasons <%= Date.current.year - 3 %> - <%= Date.current.year - 1 %> (bulk, weeks 1-17)</li>
+              <li>Import current season <%= Date.current.year %> up to current week</li>
+              <li>Import playoffs separately if analyzing playoff performance</li>
+            </ol>
+          </div>
+          
+          <div class="col-md-6">
+            <h6>⚡ For Current Season Tracking</h6>
+            <ol>
+              <li>Import individual weeks as season progresses</li>
+              <li>Focus on weeks 1-17 for regular season</li>
+              <li>Import week 18 only if relevant for your league</li>
+            </ol>
+          </div>
+        </div>
+        
+        <div class="row mt-3">
+          <div class="col-12">
+            <h6>💡 Pro Tips</h6>
+            <ul class="mb-0">
+              <li><strong>API Limits:</strong> Sleeper allows ~1000 calls/minute, so bulk imports are throttled</li>
+              <li><strong>Data Coverage:</strong> Player stats include all positions (QB, RB, WR, TE, K, DEF)</li>
+              <li><strong>Fantasy Points:</strong> Imports Standard, Half-PPR, and PPR scoring automatically</li>
+              <li><strong>Best Performance:</strong> Import during off-peak hours for faster processing</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,4 +1,14 @@
 Rails.application.routes.draw do
+  # Sleeper Analytics routes
+  resources :sleeper_analytics, only: [:index, :show] do
+    collection do
+      get :draft_analysis
+      get :player_performance  
+      get :team_performance
+      get :transaction_analysis
+      get :player_charts
+    end
+  end
   # Root route - home page
   root 'home#index'
 
@@ -20,6 +30,13 @@ Rails.application.routes.draw do
       get :pro_football_reference_player_stats
       post :import_pro_football_reference_stats
       post :bulk_import_pro_football_reference_stats
+      get :sleeper_league_data
+      post :import_sleeper_league_data
+      post :bulk_import_sleeper_league_data
+      get :sleeper_player_stats
+      post :import_sleeper_player_stats
+      post :bulk_import_sleeper_player_stats
+      post :import_sleeper_players
     end
   end
 

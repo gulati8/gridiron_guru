@@ -28,9 +28,11 @@
             Analytics
           </a>
           <ul class="dropdown-menu">
-            <li><%= link_to "Dashboard", analytics_path, class: "dropdown-item" %></li>
+            <li><%= link_to "Pro Football Reference", analytics_path, class: "dropdown-item" %></li>
             <li><%= link_to "Rankings", rankings_analytics_path, class: "dropdown-item" %></li>
             <li><%= link_to "Team Analysis", teams_analytics_path, class: "dropdown-item" %></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><%= link_to "🏈 Sleeper League Analytics", sleeper_analytics_path, class: "dropdown-item" %></li>
           </ul>
         </li>
         <li class="nav-item">

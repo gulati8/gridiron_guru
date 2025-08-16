@@ -1,7 +1,7 @@
 <div class="row">
   <div class="col-12">
     <h1>Data Import Center</h1>
-    <p class="text-muted">Import player statistics from Pro Football Reference</p>
+    <p class="text-muted">Import player statistics from Pro Football Reference and Sleeper league data</p>
   </div>
 </div>
 
@@ -9,21 +9,18 @@
   <div class="col-lg-6">
     <div class="card">
       <div class="card-header">
-        <h5>Import Single Position</h5>
+        <h5>Import Single Stat Type</h5>
       </div>
       <div class="card-body">
         <%= form_with url: import_pro_football_reference_stats_imports_path, method: :post, local: true do |f| %>
           <div class="mb-3">
-            <%= f.label :file_path, "File Path", class: "form-label" %>
-            <%= f.text_field :file_path, class: "form-control", 
-                placeholder: "/path/to/qb.json" %>
-            <div class="form-text">Full path to the JSON file</div>
-          </div>
-          
-          <div class="mb-3">
-            <%= f.label :position, "Position", class: "form-label" %>
-            <%= f.select :position, options_for_select(%w[QB RB WR TE].map { |p| [p, p] }), 
-                { prompt: "Select Position" }, { class: "form-select" } %>
+            <%= f.label :stat_type, "Stat Type", class: "form-label" %>
+            <%= f.select :stat_type, options_for_select([
+              ['Passing (QB)', 'passing'],
+              ['Rushing (RB)', 'rushing'], 
+              ['Receiving (WR/TE)', 'receiving']
+            ]), { prompt: "Select Stat Type" }, { class: "form-select" } %>
+            <div class="form-text">Choose which type of stats to scrape from Pro Football Reference</div>
           </div>
           
           <div class="mb-3">
@@ -32,7 +29,7 @@
                 value: Date.current.year, min: 2020, max: Date.current.year %>
           </div>
           
-          <%= f.submit "Import Position Stats", class: "btn btn-primary" %>
+          <%= f.submit "Scrape Stats from Web", class: "btn btn-primary" %>
         <% end %>
       </div>
     </div>
@@ -41,26 +38,180 @@
   <div class="col-lg-6">
     <div class="card">
       <div class="card-header">
-        <h5>Bulk Import All Positions</h5>
+        <h5>Bulk Import All Stat Types</h5>
       </div>
       <div class="card-body">
         <%= form_with url: bulk_import_pro_football_reference_stats_imports_path, method: :post, local: true do |f| %>
-          <div class="mb-3">
-            <%= f.label :directory_path, "Directory Path", class: "form-label" %>
-            <%= f.text_field :directory_path, class: "form-control", 
-                placeholder: "/path/to/data/directory" %>
-            <div class="form-text">
-              Directory containing qb.json, rb.json, wr.json, te.json files
-            </div>
-          </div>
-          
           <div class="mb-3">
             <%= f.label :season, "Season", class: "form-label" %>
             <%= f.number_field :season, class: "form-control", 
                 value: Date.current.year, min: 2020, max: Date.current.year %>
           </div>
           
-          <%= f.submit "Bulk Import All Positions", class: "btn btn-success" %>
+          <div class="alert alert-info">
+            <strong>This will scrape:</strong>
+            <ul class="mb-0">
+              <li>Passing stats (QB)</li>
+              <li>Rushing stats (RB)</li>
+              <li>Receiving stats (WR/TE)</li>
+            </ul>
+            <small class="text-muted">Note: This process may take several minutes due to rate limiting.</small>
+          </div>
+          
+          <%= f.submit "Scrape All Stats from Web", class: "btn btn-success" %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sleeper Data Import Section -->
+<div class="row mt-4">
+  <div class="col-12">
+    <h2>Sleeper Data Import</h2>
+    <p class="text-muted">Import Sleeper league data and player performance statistics</p>
+  </div>
+</div>
+
+<!-- Sleeper Players Import -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card border-success">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0">👥 Sleeper Player Database</h5>
+      </div>
+      <div class="card-body">
+        <p>Import the complete NFL player database from Sleeper (names, positions, teams, etc.).</p>
+        <div class="row">
+          <div class="col-md-8">
+            <ul class="mb-0">
+              <li><strong>All NFL Players:</strong> Active and inactive players</li>
+              <li><strong>Player Details:</strong> Names, positions, teams, college, physical stats</li>
+              <li><strong>Required for Stats:</strong> Must import players before importing stats</li>
+              <li><strong>One-time Setup:</strong> Only needs to be run once, then periodically updated</li>
+            </ul>
+            <div class="alert alert-warning mt-2 mb-0">
+              <small><strong>Note:</strong> This endpoint should only be called once per day per Sleeper's API guidelines.</small>
+            </div>
+          </div>
+          <div class="col-md-4 text-end">
+            <%= form_with url: import_sleeper_players_imports_path, method: :post, local: true, class: "d-inline" do |f| %>
+              <%= f.hidden_field :use_cache, value: "true" %>
+              <%= f.submit "Import Players (Cached)", class: "btn btn-success btn-lg mb-2 d-block" %>
+            <% end %>
+            <%= form_with url: import_sleeper_players_imports_path, method: :post, local: true, class: "d-inline" do |f| %>
+              <%= f.hidden_field :use_cache, value: "false" %>
+              <%= f.submit "Fresh API Call", class: "btn btn-outline-success btn-sm d-block" %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sleeper Player Stats Import -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card border-primary">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">📊 Sleeper Player Performance Data</h5>
+      </div>
+      <div class="card-body">
+        <p>Import weekly and seasonal player statistics from Sleeper's comprehensive stats API.</p>
+        <div class="row">
+          <div class="col-md-8">
+            <ul class="mb-0">
+              <li><strong>Player Stats:</strong> Weekly performance for all NFL players</li>
+              <li><strong>Fantasy Points:</strong> Standard, Half-PPR, and PPR scoring</li>
+              <li><strong>Multiple Seasons:</strong> Historical data from 2009 onwards</li>
+              <li><strong>All Positions:</strong> QB, RB, WR, TE, K, DEF/ST, and IDP players</li>
+            </ul>
+          </div>
+          <div class="col-md-4 text-end">
+            <%= link_to "Import Player Stats", sleeper_player_stats_imports_path, 
+                class: "btn btn-primary btn-lg" %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>League History Import</h3>
+
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">
+        <h5>Import Specific Seasons</h5>
+      </div>
+      <div class="card-body">
+        <%= form_with url: import_sleeper_league_data_imports_path, method: :post, local: true do |f| %>
+          <div class="mb-3">
+            <%= f.label :username, "Sleeper Username", class: "form-label" %>
+            <%= f.text_field :username, class: "form-control", 
+                placeholder: "Your Sleeper username" %>
+            <div class="form-text">Your username from Sleeper (not display name)</div>
+          </div>
+          
+          <div class="mb-3">
+            <%= f.label :seasons, "Seasons", class: "form-label" %>
+            <%= f.text_field :seasons, class: "form-control", 
+                placeholder: "2023, 2024", 
+                value: "#{Date.current.year}" %>
+            <div class="form-text">Comma-separated list of seasons (e.g., 2022, 2023, 2024)</div>
+          </div>
+          
+          <%= f.submit "Import Sleeper Data", class: "btn btn-primary" %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">
+        <h5>Bulk Import All History</h5>
+      </div>
+      <div class="card-body">
+        <%= form_with url: bulk_import_sleeper_league_data_imports_path, method: :post, local: true do |f| %>
+          <div class="mb-3">
+            <%= f.label :username, "Sleeper Username", class: "form-label" %>
+            <%= f.text_field :username, class: "form-control", 
+                placeholder: "Your Sleeper username" %>
+          </div>
+          
+          <div class="row">
+            <div class="col-6">
+              <div class="mb-3">
+                <%= f.label :start_season, "Start Season", class: "form-label" %>
+                <%= f.number_field :start_season, class: "form-control", 
+                    value: 2017, min: 2017, max: Date.current.year %>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="mb-3">
+                <%= f.label :end_season, "End Season", class: "form-label" %>
+                <%= f.number_field :end_season, class: "form-control", 
+                    value: Date.current.year, min: 2017, max: Date.current.year %>
+              </div>
+            </div>
+          </div>
+          
+          <div class="alert alert-info">
+            <strong>This will import:</strong>
+            <ul class="mb-0">
+              <li>League settings and configurations</li>
+              <li>All league members</li>
+              <li>Rosters and player ownership</li>
+              <li>Weekly matchups and scores</li>
+              <li>Draft results and pick orders</li>
+              <li>All transactions (trades, waivers, free agents)</li>
+            </ul>
+          </div>
+          
+          <%= f.submit "Import All Sleeper History", class: "btn btn-success" %>
         <% end %>
       </div>
     </div>
@@ -74,25 +225,56 @@
         <h5>Import Instructions</h5>
       </div>
       <div class="card-body">
-        <h6>Single Position Import</h6>
-        <p>Upload individual JSON files for specific positions. Use this when you have updated data for just one position.</p>
+        <h6>Single Stat Type Import</h6>
+        <p>Scrape one type of statistics from Pro Football Reference. Choose from passing (QB), rushing (RB), or receiving (WR/TE) stats for a specific season.</p>
         
         <h6>Bulk Import</h6>
-        <p>Import all positions at once from a directory. The directory should contain:</p>
+        <p>Scrape all stat types at once for a given season. This will collect:</p>
         <ul>
-          <li><code>qb.json</code> - Quarterback statistics</li>
-          <li><code>rb.json</code> - Running back statistics</li>
-          <li><code>wr.json</code> - Wide receiver statistics</li>
-          <li><code>te.json</code> - Tight end statistics</li>
+          <li><strong>Passing stats</strong> - Quarterbacks from the passing leaderboard</li>
+          <li><strong>Rushing stats</strong> - Running backs from the rushing leaderboard</li>
+          <li><strong>Receiving stats</strong> - Wide receivers and tight ends from the receiving leaderboard</li>
         </ul>
         
-        <h6>Using Rake Tasks</h6>
-        <pre class="bg-light p-2">
-# Import from directory
-rails pro_football_reference:import_stats[/path/to/data,2024]
+        <h6>Web Scraping Process</h6>
+        <div class="alert alert-warning">
+          <strong>Important:</strong>
+          <ul class="mb-0">
+            <li>The import process scrapes live data from <code>pro-football-reference.com</code></li>
+            <li>Rate limiting is built in (2-second delays between requests)</li>
+            <li>Large imports may take 10-15 minutes to complete</li>
+            <li>Jobs run in the background - check the logs for progress</li>
+          </ul>
+        </div>
+        
+        <h6>Sleeper Data Import</h6>
+        <p>Import your complete Sleeper fantasy football league history including:</p>
+        <ul>
+          <li><strong>League Data</strong> - Settings, scoring, roster positions</li>
+          <li><strong>Users & Rosters</strong> - All league members and their rosters</li>
+          <li><strong>Matchups</strong> - Weekly scores and head-to-head results</li>
+          <li><strong>Drafts</strong> - Draft results and pick orders</li>
+          <li><strong>Transactions</strong> - All trades, waiver claims, and free agent pickups</li>
+        </ul>
+        
+        <div class="alert alert-info">
+          <strong>Finding Your Username:</strong>
+          <ul class="mb-0">
+            <li>Log into Sleeper and go to your profile</li>
+            <li>Your username is shown in the URL: sleeper.com/user/<strong>username</strong></li>
+            <li>Use your username, not your display name</li>
+          </ul>
+        </div>
 
-# Import single position
-rails pro_football_reference:import_position[/path/to/qb.json,QB,2024]
+        <h6>Using Rails Console</h6>
+        <pre class="bg-light p-2">
+# Pro Football Reference imports
+ProFootballReferenceImportJob.perform_now('passing', 2024)
+BulkProFootballReferenceImportJob.perform_now(2024)
+
+# Sleeper imports
+SleeperImportJob.perform_now(username: 'your_username', seasons: [2024])
+SleeperBulkImportJob.perform_now(username: 'your_username', start_season: 2017, end_season: 2024)
         </pre>
       </div>
     </div>

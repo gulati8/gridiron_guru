@@ -13,7 +13,11 @@ class ProFootballReferenceImportService
   end
   
   def call
-    return false unless valid?
+    unless valid?
+      Rails.logger.error "Pro Football Reference Import validation failed: #{errors.full_messages.join(', ')}"
+      @custom_errors.concat(errors.full_messages)
+      return false
+    end
     
     begin
       data = ProFootballReferenceScraperService.new(stat_type: stat_type, season: season).scrape_stats
@@ -23,6 +27,7 @@ class ProFootballReferenceImportService
       true
     rescue => e
       Rails.logger.error "Pro Football Reference Import failed: #{e.message}"
+      Rails.logger.error e.backtrace.first(5).join("\n") if e.backtrace
       @custom_errors << e.message
       false
     end

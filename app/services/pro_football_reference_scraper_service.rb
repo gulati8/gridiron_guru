@@ -1,4 +1,5 @@
 require "open-uri"
+require "openssl"
 
 class ProFootballReferenceScraperService
   BASE_URL = "https://www.pro-football-reference.com"
@@ -61,7 +62,19 @@ class ProFootballReferenceScraperService
   def get_page_content url
     player_content[url] ||= begin
         sleep(rate_limit_wait)
-        Nokogiri::HTML(URI.open(url))
+        Rails.logger.info "Fetching URL: #{url}"
+        
+        # Configure SSL options for production environments
+        ssl_options = {
+          ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE,
+          "User-Agent" => "Mozilla/5.0 (compatible; GridironGuru/1.0)"
+        }
+        
+        Nokogiri::HTML(URI.open(url, ssl_options))
+    rescue => e
+        Rails.logger.error "Failed to fetch URL #{url}: #{e.message}"
+        Rails.logger.error e.backtrace.first(3).join("\n") if e.backtrace
+        raise "Failed to fetch data from Pro Football Reference: #{e.message}"
     end
   end
 

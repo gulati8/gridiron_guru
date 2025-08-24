@@ -4,12 +4,14 @@ class ProFootballReferenceImportService
   attr_accessor :season, :stat_type
   
   validates :stat_type, presence: true, inclusion: { in: %w[passing rushing receiving] }
-  validates :season, presence: true, inclusion: { in: (2020..Date.today.year).to_a }
+  validates :season, presence: true, inclusion: { in: (2020..2025).to_a }
   
   def initialize(stat_type:, season:)
     @stat_type  = stat_type
-    @season     = season
+    @season     = season.to_i  # Ensure season is an integer
     @custom_errors = []
+    
+    Rails.logger.info "ProFootballReferenceImportService initialized with stat_type: #{@stat_type}, season: #{@season} (#{@season.class})"
   end
   
   def call

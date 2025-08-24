@@ -3,6 +3,7 @@ class SleeperApiService
   
   BASE_URL = 'https://api.sleeper.app/v1'.freeze
   RATE_LIMIT_DELAY = 0.06 # 60ms delay to stay under 1000 calls/minute
+  CACHE_TTL = 24.hours # 24 hour cache TTL for all endpoints
   
   attr_accessor :rate_limit_enabled
   
@@ -12,59 +13,55 @@ class SleeperApiService
   
   # User endpoints
   def get_user(username)
-    get_request("/user/#{username}")
+    cached_get_request("/user/#{username}", "user:#{username}")
   end
   
   def get_user_leagues(user_id, season)
-    get_request("/user/#{user_id}/leagues/nfl/#{season}")
+    cached_get_request("/user/#{user_id}/leagues/nfl/#{season}", "user_leagues:#{user_id}:#{season}")
   end
   
   # League endpoints
   def get_league(league_id)
-    get_request("/league/#{league_id}")
+    cached_get_request("/league/#{league_id}", "league:#{league_id}")
   end
   
   def get_league_rosters(league_id)
-    get_request("/league/#{league_id}/rosters")
+    cached_get_request("/league/#{league_id}/rosters", "league_rosters:#{league_id}")
   end
   
   def get_league_users(league_id)
-    get_request("/league/#{league_id}/users")
+    cached_get_request("/league/#{league_id}/users", "league_users:#{league_id}")
   end
   
   def get_league_matchups(league_id, week)
-    get_request("/league/#{league_id}/matchups/#{week}")
+    cached_get_request("/league/#{league_id}/matchups/#{week}", "league_matchups:#{league_id}:#{week}")
   end
   
   def get_league_drafts(league_id)
-    get_request("/league/#{league_id}/drafts")
+    cached_get_request("/league/#{league_id}/drafts", "league_drafts:#{league_id}")
   end
   
   def get_league_transactions(league_id, week)
-    get_request("/league/#{league_id}/transactions/#{week}")
+    cached_get_request("/league/#{league_id}/transactions/#{week}", "league_transactions:#{league_id}:#{week}")
   end
   
   # Draft endpoints
   def get_draft(draft_id)
-    get_request("/draft/#{draft_id}")
+    cached_get_request("/draft/#{draft_id}", "draft:#{draft_id}")
   end
   
   def get_draft_picks(draft_id)
-    get_request("/draft/#{draft_id}/picks")
+    cached_get_request("/draft/#{draft_id}/picks", "draft_picks:#{draft_id}")
   end
   
   # Player endpoints
-  def get_players_nfl(use_cache: false)
-    if use_cache && File.exist?('tmp/sleeper_players_data.json')
-      JSON.parse(File.read('tmp/sleeper_players_data.json'))
-    else
-      get_request("/players/nfl")
-    end
+  def get_players_nfl
+    cached_get_request("/players/nfl", "players_nfl")
   end
   
   # State endpoints
   def get_nfl_state
-    get_request("/state/nfl")
+    cached_get_request("/state/nfl", "nfl_state")
   end
 
   # Player stats endpoints - NEW
@@ -82,7 +79,8 @@ class SleeperApiService
     end
     
     full_endpoint = "#{endpoint}?#{query_string}"
-    get_request_stats(full_endpoint)
+    cache_key = "player_stats:#{season}:#{week}:#{season_type}:#{positions&.join(',') || 'all'}"
+    cached_get_request_stats(full_endpoint, cache_key)
   end
 
   def get_season_stats(season, season_type: 'regular', positions: nil)
@@ -99,10 +97,57 @@ class SleeperApiService
     end
     
     full_endpoint = "#{endpoint}?#{query_string}"
-    get_request_stats(full_endpoint)
+    cache_key = "season_stats:#{season}:#{season_type}:#{positions&.join(',') || 'all'}"
+    cached_get_request_stats(full_endpoint, cache_key)
   end
   
   private
+  
+  def cached_get_request(endpoint, cache_key)
+    full_cache_key = "sleeper_api:#{cache_key}"
+    
+    # Always check cache first
+    cached_data = Rails.cache.read(full_cache_key)
+    if cached_data
+      Rails.logger.info "Cache hit for Sleeper API: #{cache_key}"
+      return cached_data
+    end
+    
+    # Cache miss - make API call
+    Rails.logger.info "Cache miss for Sleeper API: #{cache_key}"
+    data = get_request(endpoint)
+    
+    # Cache the response with TTL
+    if data
+      Rails.cache.write(full_cache_key, data, expires_in: CACHE_TTL)
+      Rails.logger.info "Cached Sleeper API response: #{cache_key} (TTL: #{CACHE_TTL})"
+    end
+    
+    data
+  end
+  
+  def cached_get_request_stats(endpoint, cache_key)
+    full_cache_key = "sleeper_api:#{cache_key}"
+    
+    # Always check cache first
+    cached_data = Rails.cache.read(full_cache_key)
+    if cached_data
+      Rails.logger.info "Cache hit for Sleeper Stats API: #{cache_key}"
+      return cached_data
+    end
+    
+    # Cache miss - make API call
+    Rails.logger.info "Cache miss for Sleeper Stats API: #{cache_key}"
+    data = get_request_stats(endpoint)
+    
+    # Cache the response with TTL
+    if data
+      Rails.cache.write(full_cache_key, data, expires_in: CACHE_TTL)
+      Rails.logger.info "Cached Sleeper Stats API response: #{cache_key} (TTL: #{CACHE_TTL})"
+    end
+    
+    data
+  end
   
   def get_request_stats(endpoint)
     # Stats API uses a different base URL

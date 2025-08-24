@@ -115,14 +115,8 @@ class ImportsController < ApplicationController
 
   # Sleeper Player import actions
   def import_sleeper_players
-    use_cache = params[:use_cache] == 'true'
+    SleeperPlayerImportJob.perform_later
     
-    SleeperPlayerImportJob.perform_later(use_cache: use_cache)
-    
-    if use_cache
-      redirect_to imports_path, notice: "Sleeper player import queued (using cached data)"
-    else
-      redirect_to imports_path, notice: "Sleeper player import queued (fresh API call - may take time)"
-    end
+    redirect_to imports_path, notice: "Sleeper player import queued (cached for 24 hours)"
   end
 end

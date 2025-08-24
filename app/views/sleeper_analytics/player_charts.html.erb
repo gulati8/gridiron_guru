@@ -12,8 +12,13 @@
   </div>
 </div>
 
+<!-- Chart data script -->
+<script type="application/json" id="chartDataScript">
+<%= @chart_data.to_json.html_safe %>
+</script>
+
 <!-- Chart Sections -->
-<div class="row mb-4">
+<div class="row mb-4" id="chartsContainer">
   <div class="col-12">
     <div class="card">
       <div class="card-header">
@@ -58,187 +63,6 @@
   </div>
 </div>
 
-<script>
-// Chart data from Rails
-const chartData = <%= raw @chart_data.to_json %>;
-
-// Color schemes for positions
-const positionColors = {
-  QB: '#dc3545',
-  RB: '#28a745', 
-  WR: '#17a2b8',
-  TE: '#ffc107'
-};
-
-// 1. Season Leaders Chart
-const seasonCtx = document.getElementById('seasonLeadersChart').getContext('2d');
-const seasonLeadersChart = new Chart(seasonCtx, {
-  type: 'line',
-  data: {
-    labels: ['2021', '2022', '2023', '2024'],
-    datasets: Object.keys(chartData.season_leaders).map(position => ({
-      label: position,
-      data: chartData.season_leaders[position].map(data => data.fantasy_points),
-      borderColor: positionColors[position],
-      backgroundColor: positionColors[position] + '20',
-      tension: 0.1
-    }))
-  },
-  options: {
-    responsive: true,
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'Fantasy Points (PPR)'
-        }
-      }
-    },
-    plugins: {
-      title: {
-        display: true,
-        text: 'Position Leaders by Season'
-      },
-      tooltip: {
-        callbacks: {
-          afterLabel: function(context) {
-            const position = context.dataset.label;
-            const season = context.label;
-            const playerData = chartData.season_leaders[position].find(d => d.season == season);
-            return playerData ? `Player: ${playerData.player_name}` : '';
-          }
-        }
-      }
-    }
-  }
-});
-
-// 2. Weekly Trends Chart
-const weeklyCtx = document.getElementById('weeklyTrendsChart').getContext('2d');
-let weeklyTrendsChart;
-
-function updateWeeklyChart(position) {
-  if (weeklyTrendsChart) {
-    weeklyTrendsChart.destroy();
-  }
-  
-  const positionData = chartData.weekly_performance_2024[position];
-  const weeks = [...new Set(positionData.flatMap(p => p.weekly_data.map(w => w.week)))].sort((a, b) => a - b);
-  
-  weeklyTrendsChart = new Chart(weeklyCtx, {
-    type: 'line',
-    data: {
-      labels: weeks,
-      datasets: positionData.map((player, index) => ({
-        label: `${player.player_name} (${player.total_points})`,
-        data: weeks.map(week => {
-          const weekData = player.weekly_data.find(w => w.week === week);
-          return weekData ? weekData.points : null;
-        }),
-        borderColor: `hsl(${index * 360 / positionData.length}, 70%, 50%)`,
-        backgroundColor: `hsl(${index * 360 / positionData.length}, 70%, 50%, 0.1)`,
-        tension: 0.1,
-        spanGaps: false
-      }))
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true,
-          title: {
-            display: true,
-            text: 'Fantasy Points (PPR)'
-          }
-        },
-        x: {
-          title: {
-            display: true,
-            text: 'Week'
-          }
-        }
-      },
-      plugins: {
-        title: {
-          display: true,
-          text: `Top 5 ${position}s - Weekly Performance (2024)`
-        }
-      }
-    }
-  });
-}
-
-// Initialize with QB data
-updateWeeklyChart('QB');
-
-// Position button handlers
-document.querySelectorAll('#positionButtons button').forEach(button => {
-  button.addEventListener('click', function() {
-    // Remove active class from all buttons
-    document.querySelectorAll('#positionButtons button').forEach(b => b.classList.remove('active'));
-    // Add active class to clicked button
-    this.classList.add('active');
-    
-    // Update chart
-    updateWeeklyChart(this.dataset.position);
-  });
-});
-
-// 3. Position Scarcity Chart
-const scarcityCtx = document.getElementById('scarcityChart').getContext('2d');
-const scarcityChart = new Chart(scarcityCtx, {
-  type: 'bar',
-  data: {
-    labels: Object.keys(chartData.position_scarcity_2024),
-    datasets: [
-      {
-        label: 'Top 12 Average',
-        data: Object.values(chartData.position_scarcity_2024).map(d => d.top_12_average),
-        backgroundColor: '#28a745'
-      },
-      {
-        label: 'Next 12 Average', 
-        data: Object.values(chartData.position_scarcity_2024).map(d => d.next_12_average),
-        backgroundColor: '#ffc107'
-      },
-      {
-        label: 'Dropoff',
-        data: Object.values(chartData.position_scarcity_2024).map(d => d.dropoff),
-        backgroundColor: '#dc3545'
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'Fantasy Points (PPR)'
-        }
-      }
-    },
-    plugins: {
-      title: {
-        display: true,
-        text: 'Position Scarcity Analysis - Fantasy Points Dropoff (2024)'
-      },
-      tooltip: {
-        callbacks: {
-          afterBody: function(tooltipItems) {
-            const position = tooltipItems[0].label;
-            const data = chartData.position_scarcity_2024[position];
-            return `Total Players: ${data.total_players}`;
-          }
-        }
-      }
-    }
-  }
-});
-</script>
-
 <style>
 canvas {
   max-height: 400px !important;
@@ -252,4 +76,356 @@ canvas {
   float: right;
   margin-top: -5px;
 }
+
+.btn-group .btn.active {
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.btn-group .btn:hover {
+  transform: translateY(-1px);
+  transition: transform 0.1s ease-in-out;
+}
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const chartsContainer = document.getElementById('chartsContainer');
+  console.log('Player charts container found:', !!chartsContainer);
+  if (!chartsContainer) {
+    console.log('Not on player charts page, exiting');
+    return;
+  }
+
+  // Check if Chart.js is loaded
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js is not loaded');
+    return;
+  }
+
+  // Get chart data from script tag
+  const chartDataScript = document.getElementById('chartDataScript');
+  let chartData;
+  try {
+    if (chartDataScript) {
+      chartData = JSON.parse(chartDataScript.textContent);
+      console.log('Parsed player chart data successfully');
+    } else {
+      throw new Error('Chart data script not found');
+    }
+  } catch (error) {
+    console.error('Failed to parse chart data:', error);
+    return;
+  }
+
+  console.log('Chart data:', chartData);
+
+  // =============================================================================
+  // SEASON LEADERS CHART
+  // =============================================================================
+  
+  const seasonLeadersCtx = document.getElementById('seasonLeadersChart').getContext('2d');
+  
+  // Create datasets for season leaders
+  const positionColors = {
+    'QB': '#dc3545',  // Red
+    'RB': '#28a745',  // Green
+    'WR': '#17a2b8',  // Teal
+    'TE': '#ffc107'   // Yellow
+  };
+
+  const seasonLeadersDatasets = Object.keys(chartData.season_leaders).map(position => {
+    return {
+      label: position,
+      data: chartData.season_leaders[position].map(entry => ({
+        x: entry.season,
+        y: entry.fantasy_points,
+        player_name: entry.player_name
+      })),
+      borderColor: positionColors[position],
+      backgroundColor: positionColors[position] + '20',
+      borderWidth: 3,
+      tension: 0.1,
+      pointRadius: 5,
+      pointHoverRadius: 7
+    };
+  });
+
+  const seasonLeadersChart = new Chart(seasonLeadersCtx, {
+    type: 'line',
+    data: {
+      datasets: seasonLeadersDatasets
+    },
+    options: {
+      responsive: true,
+      interaction: {
+        mode: 'point',
+        intersect: false
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          position: 'bottom',
+          title: {
+            display: true,
+            text: 'Season'
+          },
+          min: 2021,
+          max: 2024,
+          ticks: {
+            stepSize: 1
+          }
+        },
+        y: {
+          beginAtZero: false,
+          title: {
+            display: true,
+            text: 'Fantasy Points (PPR)'
+          }
+        }
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: 'Season Leaders by Position (2021-2024)'
+        },
+        legend: {
+          display: true,
+          position: 'top'
+        },
+        tooltip: {
+          callbacks: {
+            title: function(tooltipItems) {
+              const point = tooltipItems[0];
+              return `${point.parsed.x} Season Leader`;
+            },
+            label: function(context) {
+              const point = context.raw;
+              return [
+                `${context.dataset.label}: ${point.player_name}`,
+                `Fantasy Points: ${point.y.toFixed(1)}`
+              ];
+            }
+          }
+        }
+      }
+    }
+  });
+
+  console.log('Season leaders chart created successfully');
+
+  // =============================================================================
+  // WEEKLY TRENDS CHART
+  // =============================================================================
+  
+  const weeklyTrendsCtx = document.getElementById('weeklyTrendsChart').getContext('2d');
+  
+  // Function to create weekly trends datasets
+  function createWeeklyDatasets(position = 'QB') {
+    const players = chartData.weekly_performance_2024[position] || [];
+    const colors = ['#dc3545', '#28a745', '#17a2b8', '#ffc107', '#6f42c1'];
+    
+    return players.map((player, index) => {
+      return {
+        label: player.player_name,
+        data: player.weekly_data.map(week => ({
+          x: week.week,
+          y: week.points
+        })),
+        borderColor: colors[index % colors.length],
+        backgroundColor: colors[index % colors.length] + '20',
+        borderWidth: 2,
+        tension: 0.1,
+        pointRadius: 3,
+        pointHoverRadius: 5
+      };
+    });
+  }
+
+  // Create initial weekly trends chart
+  let currentWeeklyDatasets = createWeeklyDatasets('QB');
+  
+  const weeklyTrendsChart = new Chart(weeklyTrendsCtx, {
+    type: 'line',
+    data: {
+      datasets: currentWeeklyDatasets
+    },
+    options: {
+      responsive: true,
+      interaction: {
+        mode: 'point',
+        intersect: false
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          position: 'bottom',
+          title: {
+            display: true,
+            text: 'Week'
+          },
+          min: 1,
+          max: 18,
+          ticks: {
+            stepSize: 1
+          }
+        },
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Fantasy Points (PPR)'
+          }
+        }
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: '2024 Weekly Performance - QBs'
+        },
+        legend: {
+          display: true,
+          position: 'top'
+        },
+        tooltip: {
+          callbacks: {
+            title: function(tooltipItems) {
+              const point = tooltipItems[0];
+              return `Week ${point.parsed.x}`;
+            },
+            label: function(context) {
+              return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} pts`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  console.log('Weekly trends chart created successfully');
+
+  // Function to update weekly trends chart
+  function updateWeeklyChart(position) {
+    const newDatasets = createWeeklyDatasets(position);
+    weeklyTrendsChart.data.datasets = newDatasets;
+    weeklyTrendsChart.options.plugins.title.text = `2024 Weekly Performance - ${position}s`;
+    weeklyTrendsChart.update();
+    console.log(`Weekly chart updated for position: ${position}`);
+  }
+
+  // Add event listeners to position buttons
+  document.querySelectorAll('#positionButtons button').forEach(button => {
+    button.addEventListener('click', function() {
+      // Remove active class from all buttons
+      document.querySelectorAll('#positionButtons button').forEach(b => b.classList.remove('active'));
+      
+      // Add active class to clicked button
+      this.classList.add('active');
+      
+      // Update chart with selected position
+      const selectedPosition = this.dataset.position;
+      updateWeeklyChart(selectedPosition);
+    });
+  });
+
+  console.log('Position filter buttons initialized');
+
+  // =============================================================================
+  // POSITION SCARCITY CHART
+  // =============================================================================
+  
+  const scarcityCtx = document.getElementById('scarcityChart').getContext('2d');
+  
+  // Create scarcity chart data
+  const positions = Object.keys(chartData.position_scarcity_2024);
+  const top12Averages = positions.map(pos => chartData.position_scarcity_2024[pos].top_12_average);
+  const next12Averages = positions.map(pos => chartData.position_scarcity_2024[pos].next_12_average);
+  const dropoffs = positions.map(pos => chartData.position_scarcity_2024[pos].dropoff);
+
+  const scarcityChart = new Chart(scarcityCtx, {
+    type: 'bar',
+    data: {
+      labels: positions,
+      datasets: [
+        {
+          label: 'Top 12 Average',
+          data: top12Averages,
+          backgroundColor: '#28a745',
+          borderColor: '#28a745',
+          borderWidth: 1
+        },
+        {
+          label: 'Next 12 Average',
+          data: next12Averages,
+          backgroundColor: '#ffc107',
+          borderColor: '#ffc107',
+          borderWidth: 1
+        },
+        {
+          label: 'Dropoff',
+          data: dropoffs,
+          backgroundColor: '#dc3545',
+          borderColor: '#dc3545',
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: {
+          display: true,
+          text: 'Position Scarcity Analysis (2024) - Fantasy Points'
+        },
+        legend: {
+          display: true,
+          position: 'top'
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const position = context.label;
+              const data = chartData.position_scarcity_2024[position];
+              
+              if (context.datasetIndex === 0) {
+                return `Top 12 Avg: ${context.parsed.y.toFixed(1)} pts`;
+              } else if (context.datasetIndex === 1) {
+                return `Next 12 Avg: ${context.parsed.y.toFixed(1)} pts`;
+              } else {
+                return `Dropoff: ${context.parsed.y.toFixed(1)} pts (${((data.dropoff / data.top_12_average) * 100).toFixed(1)}%)`;
+              }
+            },
+            footer: function(tooltipItems) {
+              if (tooltipItems.length > 0) {
+                const position = tooltipItems[0].label;
+                const data = chartData.position_scarcity_2024[position];
+                return `Total Players: ${data.total_players}`;
+              }
+              return '';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Position'
+          }
+        },
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Average Fantasy Points'
+          }
+        }
+      }
+    }
+  });
+
+  console.log('Position scarcity chart created successfully');
+  
+  console.log('All player performance charts initialized successfully');
+});
+</script>

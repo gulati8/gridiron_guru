@@ -90,18 +90,13 @@
               <li><strong>Required for Stats:</strong> Must import players before importing stats</li>
               <li><strong>One-time Setup:</strong> Only needs to be run once, then periodically updated</li>
             </ul>
-            <div class="alert alert-warning mt-2 mb-0">
-              <small><strong>Note:</strong> This endpoint should only be called once per day per Sleeper's API guidelines.</small>
+            <div class="alert alert-info mt-2 mb-0">
+              <small><strong>Redis Caching:</strong> All API calls are cached for 24 hours to improve performance and respect API limits.</small>
             </div>
           </div>
           <div class="col-md-4 text-end">
-            <%= form_with url: import_sleeper_players_imports_path, method: :post, local: true, class: "d-inline" do |f| %>
-              <%= f.hidden_field :use_cache, value: "true" %>
-              <%= f.submit "Import Players (Cached)", class: "btn btn-success btn-lg mb-2 d-block" %>
-            <% end %>
-            <%= form_with url: import_sleeper_players_imports_path, method: :post, local: true, class: "d-inline" do |f| %>
-              <%= f.hidden_field :use_cache, value: "false" %>
-              <%= f.submit "Fresh API Call", class: "btn btn-outline-success btn-sm d-block" %>
+            <%= form_with url: import_sleeper_players_imports_path, method: :post, local: true do |f| %>
+              <%= f.submit "Import Players", class: "btn btn-success btn-lg" %>
             <% end %>
           </div>
         </div>

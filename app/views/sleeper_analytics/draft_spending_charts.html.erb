@@ -1,0 +1,888 @@
+<div class="row">
+  <div class="col-12">
+    <h1>💰 Draft Spending Analysis</h1>
+    <p class="text-muted">Analyze spending patterns and inflection points across draft picks</p>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="row mb-3">
+  <div class="col-12">
+    <%= link_to "← Back to Dashboard", sleeper_analytics_path, class: "btn btn-outline-secondary" %>
+    <%= link_to "📊 Draft Analysis", draft_analysis_sleeper_analytics_path, class: "btn btn-outline-primary" %>
+  </div>
+</div>
+
+<%
+# Generate chart data directly in view as workaround
+if SleeperDraft.exists?
+  @spending_chart_data = {
+    metadata: {
+      generated_at: Time.current,
+      total_drafts: SleeperDraft.count,
+      chart_type: 'draft_spending_analysis'
+    },
+    draft_lines: {}
+  }
+
+  SleeperDraft.includes(:sleeper_draft_picks, :sleeper_league).each do |draft|
+    league = draft.sleeper_league
+    picks = draft.sleeper_draft_picks.order(:pick_no)
+    
+    line_data = picks.map do |pick|
+      amount = pick.metadata['amount']&.to_i || 0
+      player_name = [pick.metadata['first_name'], pick.metadata['last_name']].compact.join(' ')
+      
+      {
+        x: pick.pick_no,
+        y: amount,
+        player_name: player_name,
+        position: pick.metadata['position'],
+        team: pick.metadata['team']
+      }
+    end
+    
+    draft_key = "#{league.season}_#{league.name.gsub(' ', '_')}"
+    @spending_chart_data[:draft_lines][draft_key] = {
+      label: "#{league.season} #{league.name}",
+      data: line_data,
+      season: league.season,
+      league_name: league.name,
+      total_picks: picks.count,
+      max_spend: line_data.map { |point| point[:y] }.max,
+      min_spend: line_data.map { |point| point[:y] }.min,
+      avg_spend: (line_data.map { |point| point[:y] }.sum.to_f / line_data.size).round(1)
+    }
+  end
+  
+  # Generate manager spending data
+  @manager_chart_data = {
+    metadata: {
+      generated_at: Time.current,
+      chart_type: 'manager_spending_analysis'
+    },
+    manager_lines: {},
+    managers: []
+  }
+  
+  managers_set = Set.new
+  
+  SleeperDraft.includes(:sleeper_league).each do |draft|
+    league = draft.sleeper_league
+    season = league.season
+    
+    # Group picks by manager for this draft
+    picks_by_manager = draft.sleeper_draft_picks.includes(sleeper_roster: :sleeper_user).group_by do |pick|
+      pick.sleeper_roster.sleeper_user.display_name
+    end
+    
+    picks_by_manager.each do |manager_name, picks|
+      managers_set.add(manager_name)
+      
+      # Sort picks by pick number for this manager
+      sorted_picks = picks.sort_by(&:pick_no)
+      
+      # Create data points for this manager's spending line
+      line_data = sorted_picks.map do |pick|
+        amount = pick.metadata['amount']&.to_i || 0
+        player_name = [pick.metadata['first_name'], pick.metadata['last_name']].compact.join(' ')
+        
+        {
+          x: pick.pick_no,
+          y: amount,
+          player_name: player_name,
+          position: pick.metadata['position'],
+          team: pick.metadata['team'],
+          round: pick.round
+        }
+      end
+      
+      # Add this manager-season combination as a line
+      line_key = "#{manager_name}_#{season}"
+      @manager_chart_data[:manager_lines][line_key] = {
+        label: "#{manager_name} (#{season})",
+        manager_name: manager_name,
+        season: season,
+        data: line_data,
+        total_picks: picks.count,
+        total_spent: line_data.map { |point| point[:y] }.sum,
+        avg_spend: (line_data.map { |point| point[:y] }.sum.to_f / line_data.size).round(1)
+      }
+    end
+  end
+  
+  @manager_chart_data[:managers] = managers_set.to_a.sort
+end
+%>
+
+<% if SleeperDraft.exists? && @spending_chart_data %>
+<!-- Chart data script -->
+<script type="application/json" id="spendingChartDataScript">
+<%= @spending_chart_data.to_json.html_safe %>
+</script>
+
+<!-- Manager chart data script -->
+<script type="application/json" id="managerChartDataScript">
+<%= @manager_chart_data.to_json.html_safe %>
+</script>
+
+<!-- Draft Spending Summary Cards -->
+<div class="row mb-4">
+  <% @spending_chart_data[:draft_lines].each do |draft_key, draft_data| %>
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-header">
+          <h6 class="mb-0"><%= draft_data[:season] %> Draft</h6>
+        </div>
+        <div class="card-body py-2">
+          <div class="row text-center">
+            <div class="col-4">
+              <small class="text-muted">Max</small><br>
+              <strong class="text-success">$<%= draft_data[:max_spend] %></strong>
+            </div>
+            <div class="col-4">
+              <small class="text-muted">Avg</small><br>
+              <strong>$<%= draft_data[:avg_spend] %></strong>
+            </div>
+            <div class="col-4">
+              <small class="text-muted">Min</small><br>
+              <strong class="text-danger">$<%= draft_data[:min_spend] %></strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<!-- Draft Spending Chart -->
+<div class="row mb-4" id="spendingChartsContainer">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h5 class="mb-1">📈 Draft Spending by Pick Number</h5>
+            <small class="text-muted">Each line represents a different draft year. Look for inflection points where spending behavior changes.</small>
+          </div>
+          <div>
+            <div class="btn-group-vertical" role="group" id="yearFilterContainer">
+              <button type="button" class="btn btn-sm btn-outline-secondary mb-1 active" data-year="all">All Years</button>
+              <div class="d-flex flex-wrap gap-1">
+                <button type="button" class="btn btn-sm btn-outline-primary year-toggle" data-year="2024">2024</button>
+                <button type="button" class="btn btn-sm btn-outline-success year-toggle" data-year="2023">2023</button>
+                <button type="button" class="btn btn-sm btn-outline-info year-toggle" data-year="2022">2022</button>
+                <button type="button" class="btn btn-sm btn-outline-warning year-toggle" data-year="2021">2021</button>
+              </div>
+            </div>
+            <div class="text-muted small mt-1">Select any combination of years or "All Years"</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <canvas id="draftSpendingChart" width="400" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Manager Spending Chart -->
+<div class="row mb-4" id="managerSpendingContainer">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h5 class="mb-1">👥 Manager Spending Patterns</h5>
+            <small class="text-muted">Individual manager spending strategies by draft position. Each line represents one manager in one season.</small>
+          </div>
+          <div>
+            <div class="btn-group-vertical me-2" role="group" id="managerYearContainer">
+              <button type="button" class="btn btn-sm btn-outline-secondary mb-1 active" data-filter-year="all">All Years</button>
+              <div class="d-flex flex-wrap gap-1">
+                <button type="button" class="btn btn-sm btn-outline-primary manager-year-toggle" data-filter-year="2024">2024</button>
+                <button type="button" class="btn btn-sm btn-outline-success manager-year-toggle" data-filter-year="2023">2023</button>
+                <button type="button" class="btn btn-sm btn-outline-info manager-year-toggle" data-filter-year="2022">2022</button>
+                <button type="button" class="btn btn-sm btn-outline-warning manager-year-toggle" data-filter-year="2021">2021</button>
+              </div>
+            </div>
+            <select class="form-select form-select-sm" id="managerFilter" style="width: auto; display: inline-block;">
+              <option value="all">All Managers</option>
+            </select>
+          </div>
+        </div>
+        <div class="text-muted small mt-2">Select any combination of years and/or manager to analyze strategies</div>
+      </div>
+      <div class="card-body">
+        <canvas id="managerSpendingChart" width="400" height="250"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Manager Chart Insights -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card bg-light">
+      <div class="card-body">
+        <h6 class="card-title">🧠 Manager Analysis Tips</h6>
+        <div class="row">
+          <div class="col-md-6">
+            <ul class="mb-0">
+              <li><strong>Conservative vs Aggressive:</strong> Look for managers who spend big early vs those who spread spending evenly</li>
+              <li><strong>Late Round Value:</strong> Identify managers who find steals in later picks</li>
+              <li><strong>Positional Preferences:</strong> Track which managers prioritize certain positions early</li>
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <ul class="mb-0">
+              <li><strong>Year-over-Year Evolution:</strong> Compare same manager across seasons to see strategy changes</li>
+              <li><strong>Draft Position Impact:</strong> See how draft slot affects spending patterns</li>
+              <li><strong>Budget Management:</strong> Analyze how managers allocate their auction budget</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Insights Section -->
+<div class="row mb-4">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5>💡 Spending Pattern Analysis</h5>
+      </div>
+      <div class="card-body">
+        <h6>Key Inflection Points to Watch:</h6>
+        <ul>
+          <li><strong>Elite Tier (Picks 1-30):</strong> High-value studs and potential busts</li>
+          <li><strong>Value Zone (Picks 31-80):</strong> Look for steep drop-offs in spending</li>
+          <li><strong>Dollar Store (Picks 81+):</strong> Where managers start bargain hunting</li>
+        </ul>
+        
+        <h6>Strategic Insights:</h6>
+        <ul>
+          <li><strong>Consistent High Spenders:</strong> Identify picks where all years show high spending</li>
+          <li><strong>Value Opportunities:</strong> Find picks where spending dropped significantly in recent years</li>
+          <li><strong>Behavioral Shifts:</strong> Notice where the curve flattens (managers become price-sensitive)</li>
+          <li><strong>Year-over-Year Comparison:</strong> Use filters to compare specific years and identify trends</li>
+          <li><strong>Single Year Analysis:</strong> Filter to one year to see pure draft position value without year bias</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5>🎯 Draft Strategy Tips</h5>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-success">
+          <strong>🔍 Look For:</strong>
+          <ul class="mb-0">
+            <li>Sharp drop-offs in spending</li>
+            <li>Consistent high-value picks</li>
+            <li>Years with unusual patterns</li>
+            <li>Pick ranges with stable pricing</li>
+          </ul>
+        </div>
+        
+        <div class="alert alert-info">
+          <strong>💰 Budget Strategy:</strong>
+          <p class="mb-1">Use this chart to identify where other managers typically start being more price-conscious. These inflection points can guide your bidding strategy.</p>
+          <p class="mb-0"><strong>🔍 Pro Tip:</strong> Filter by individual years to isolate specific draft behaviors, or compare all years to see consistent patterns!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Spends by Pick Analysis -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5>🏆 Highest Spends by Draft Position</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <% @spending_chart_data[:draft_lines].each do |draft_key, draft_data| %>
+            <div class="col-md-6 mb-3">
+              <h6><%= draft_data[:label] %></h6>
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Pick</th>
+                      <th>Player</th>
+                      <th>Position</th>
+                      <th>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% draft_data[:data].sort_by { |pick| -pick[:y] }.first(5).each do |pick| %>
+                      <tr>
+                        <td><span class="badge bg-secondary">#<%= pick[:x] %></span></td>
+                        <td><strong><%= pick[:player_name] %></strong></td>
+                        <td><span class="badge bg-primary"><%= pick[:position] %></span></td>
+                        <td><strong class="text-success">$<%= pick[:y] %></strong></td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% else %>
+<div class="alert alert-warning">
+  <h4>Draft Chart Data Issue</h4>
+  <p>
+    Draft data exists (<%= SleeperDraft.count %> drafts found), 
+    but chart data generation failed.
+    <% if @spending_chart_data.nil? %>
+      Chart data is nil.
+    <% else %>
+      Chart data structure issue.
+    <% end %>
+  </p>
+  <%= link_to "← Back to Dashboard", sleeper_analytics_path, class: "btn btn-secondary" %>
+</div>
+<% end %>
+
+<style>
+canvas {
+  max-height: 500px !important;
+}
+
+.card-header .badge {
+  float: right;
+  margin-top: -2px;
+}
+
+.table-sm td, .table-sm th {
+  padding: 0.3rem;
+}
+
+#yearFilterContainer .btn.active {
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+#yearFilterContainer .btn:hover {
+  transform: translateY(-1px);
+  transition: transform 0.1s ease-in-out;
+}
+
+#yearFilterContainer .year-toggle.active {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: white;
+}
+
+#managerYearContainer .btn.active {
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+#managerYearContainer .btn:hover {
+  transform: translateY(-1px);
+  transition: transform 0.1s ease-in-out;
+}
+
+#managerYearContainer .manager-year-toggle.active {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: white;
+}
+
+#managerFilter:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const spendingContainer = document.getElementById('spendingChartsContainer');
+  console.log('Spending charts container found:', !!spendingContainer);
+  if (!spendingContainer) {
+    console.log('Not on spending charts page, exiting');
+    return;
+  }
+
+  // Check if Chart.js is loaded
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js is not loaded');
+    return;
+  }
+
+  // Get chart data from script tag
+  const chartDataScript = document.getElementById('spendingChartDataScript');
+  let chartData;
+  try {
+    if (chartDataScript) {
+      chartData = JSON.parse(chartDataScript.textContent);
+      console.log('Parsed spending chart data successfully');
+    } else {
+      throw new Error('Chart data script not found');
+    }
+  } catch (error) {
+    console.error('Failed to parse chart data:', error);
+    return;
+  }
+
+  console.log('Chart data:', chartData);
+
+  // Color palette for different draft years (consistent mapping)
+  const yearColors = {
+    '2024': '#dc3545', // Red for 2024
+    '2023': '#28a745', // Green for 2023  
+    '2022': '#17a2b8', // Teal for 2022
+    '2021': '#ffc107', // Yellow for 2021
+  };
+  
+  const colors = [
+    '#dc3545', // Red for 2024
+    '#28a745', // Green for 2023  
+    '#17a2b8', // Teal for 2022
+    '#ffc107', // Yellow for 2021
+    '#6f42c1', // Purple for additional years
+    '#fd7e14', // Orange for additional years
+  ];
+
+  // Function to create datasets based on filter
+  function createDatasets(filterYears = ['all']) {
+    let filteredData = chartData.draft_lines;
+    
+    // Filter data by year if not 'all'
+    if (filterYears[0] !== 'all') {
+      filteredData = {};
+      Object.keys(chartData.draft_lines).forEach(key => {
+        const draftData = chartData.draft_lines[key];
+        if (filterYears.includes(draftData.season.toString())) {
+          filteredData[key] = draftData;
+        }
+      });
+    }
+    
+    return Object.keys(filteredData).map((draftKey, index) => {
+      const draftData = filteredData[draftKey];
+      
+      // Use consistent color based on year
+      const yearKey = draftData.season.toString();
+      const color = yearColors[yearKey] || colors[index % colors.length];
+      
+      return {
+        label: draftData.label,
+        data: draftData.data.map(point => ({
+          x: point.x,
+          y: point.y,
+          player_name: point.player_name,
+          position: point.position,
+          team: point.team
+        })),
+        borderColor: color,
+        backgroundColor: color + '20',
+        borderWidth: 2,
+        tension: 0.1,
+        pointRadius: 3,
+        pointHoverRadius: 5
+      };
+    });
+  }
+
+  // Create initial datasets (all years)
+  let currentDatasets = createDatasets(['all']);
+  console.log('Created datasets:', currentDatasets.length);
+
+  // Create the spending chart
+  const spendingCtx = document.getElementById('draftSpendingChart').getContext('2d');
+  const spendingChart = new Chart(spendingCtx, {
+    type: 'line',
+    data: {
+      datasets: currentDatasets
+    },
+    options: {
+      responsive: true,
+      interaction: {
+        mode: 'point',
+        intersect: false
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          position: 'bottom',
+          title: {
+            display: true,
+            text: 'Draft Pick Number'
+          },
+          min: 1,
+          ticks: {
+            stepSize: 10
+          }
+        },
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Dollar Amount Spent'
+          },
+          ticks: {
+            callback: function(value) {
+              return '$' + value;
+            }
+          }
+        }
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: 'Draft Spending Patterns by Pick Number'
+        },
+        legend: {
+          display: true,
+          position: 'top'
+        },
+        tooltip: {
+          callbacks: {
+            title: function(tooltipItems) {
+              const point = tooltipItems[0];
+              return `Pick #${point.parsed.x}`;
+            },
+            label: function(context) {
+              const point = context.raw;
+              return [
+                `${context.dataset.label}: $${point.y}`,
+                `Player: ${point.player_name}`,
+                `Position: ${point.position}`,
+                `Team: ${point.team || 'N/A'}`
+              ];
+            }
+          }
+        }
+      }
+    }
+  });
+
+  console.log('Draft spending chart created successfully');
+
+  // Function to update chart with new filter
+  function updateChart(filterYears) {
+    const newDatasets = createDatasets(filterYears);
+    spendingChart.data.datasets = newDatasets;
+    
+    // Update chart title based on filter
+    let chartTitle;
+    if (filterYears[0] === 'all') {
+      chartTitle = 'Draft Spending Patterns by Pick Number - All Years';
+    } else if (filterYears.length === 1) {
+      chartTitle = `Draft Spending Patterns by Pick Number - ${filterYears[0]}`;
+    } else {
+      chartTitle = `Draft Spending Patterns by Pick Number - ${filterYears.sort().join(', ')}`;
+    }
+    spendingChart.options.plugins.title.text = chartTitle;
+    
+    spendingChart.update();
+    console.log(`Chart updated for years: ${filterYears.join(', ')}, datasets: ${newDatasets.length}`);
+  }
+
+  // Function to get selected years
+  function getSelectedYears() {
+    const allYearsBtn = document.querySelector('#yearFilterContainer button[data-year="all"]');
+    const yearToggleBtns = document.querySelectorAll('#yearFilterContainer .year-toggle.active');
+    
+    if (allYearsBtn.classList.contains('active')) {
+      return ['all'];
+    } else if (yearToggleBtns.length > 0) {
+      return Array.from(yearToggleBtns).map(btn => btn.dataset.year);
+    } else {
+      return ['all']; // Default to all if none selected
+    }
+  }
+
+  // Add event listener for "All Years" button
+  document.querySelector('#yearFilterContainer button[data-year="all"]').addEventListener('click', function() {
+    // Deactivate all year toggles
+    document.querySelectorAll('#yearFilterContainer .year-toggle').forEach(btn => btn.classList.remove('active'));
+    
+    // Activate "All Years" button
+    this.classList.add('active');
+    
+    // Update chart
+    updateChart(['all']);
+  });
+
+  // Add event listeners to year toggle buttons
+  document.querySelectorAll('#yearFilterContainer .year-toggle').forEach(button => {
+    button.addEventListener('click', function() {
+      // Deactivate "All Years" button
+      document.querySelector('#yearFilterContainer button[data-year="all"]').classList.remove('active');
+      
+      // Toggle this button
+      this.classList.toggle('active');
+      
+      // Get selected years and update chart
+      const selectedYears = getSelectedYears();
+      updateChart(selectedYears);
+    });
+  });
+
+  console.log('Filter buttons initialized');
+
+  // =============================================================================
+  // MANAGER SPENDING CHART
+  // =============================================================================
+
+  // Get manager chart data
+  const managerDataScript = document.getElementById('managerChartDataScript');
+  let managerChartData;
+  try {
+    if (managerDataScript) {
+      managerChartData = JSON.parse(managerDataScript.textContent);
+      console.log('Parsed manager chart data successfully');
+    } else {
+      throw new Error('Manager chart data script not found');
+    }
+  } catch (error) {
+    console.error('Failed to parse manager chart data:', error);
+    return;
+  }
+
+  console.log('Manager chart data:', managerChartData);
+
+  // Populate manager dropdown
+  const managerSelect = document.getElementById('managerFilter');
+  managerChartData.managers.forEach(manager => {
+    const option = document.createElement('option');
+    option.value = manager;
+    option.textContent = manager;
+    managerSelect.appendChild(option);
+  });
+
+  // Enhanced color palette for managers (more colors needed)
+  const managerColors = [
+    '#ff6384', '#36a2eb', '#cc65fe', '#ffce56', '#4bc0c0',
+    '#9966ff', '#ff9f40', '#c9cbcf', '#4bc0c0', '#ff6384',
+    '#36a2eb', '#cc65fe', '#ffce56', '#9966ff', '#ff9f40',
+    '#e7e9ed', '#71b37c', '#518fcf', '#f87979', '#bb6bd9'
+  ];
+
+  // Function to create manager datasets based on filters
+  function createManagerDatasets(filterYears = ['all'], filterManager = 'all') {
+    let filteredData = managerChartData.manager_lines;
+    
+    // Filter by year
+    if (filterYears[0] !== 'all') {
+      const yearFiltered = {};
+      Object.keys(filteredData).forEach(key => {
+        const lineData = filteredData[key];
+        if (filterYears.includes(lineData.season.toString())) {
+          yearFiltered[key] = lineData;
+        }
+      });
+      filteredData = yearFiltered;
+    }
+    
+    // Filter by manager
+    if (filterManager !== 'all') {
+      const managerFiltered = {};
+      Object.keys(filteredData).forEach(key => {
+        const lineData = filteredData[key];
+        if (lineData.manager_name === filterManager) {
+          managerFiltered[key] = lineData;
+        }
+      });
+      filteredData = managerFiltered;
+    }
+    
+    return Object.keys(filteredData).map((lineKey, index) => {
+      const lineData = filteredData[lineKey];
+      
+      return {
+        label: lineData.label,
+        data: lineData.data.map(point => ({
+          x: point.x,
+          y: point.y,
+          player_name: point.player_name,
+          position: point.position,
+          team: point.team,
+          round: point.round
+        })),
+        borderColor: managerColors[index % managerColors.length],
+        backgroundColor: managerColors[index % managerColors.length] + '20',
+        borderWidth: 2,
+        tension: 0.1,
+        pointRadius: 2,
+        pointHoverRadius: 4
+      };
+    });
+  }
+
+  // Create initial manager datasets
+  let currentManagerDatasets = createManagerDatasets(['all'], 'all');
+  console.log('Created manager datasets:', currentManagerDatasets.length);
+
+  // Create the manager spending chart
+  const managerCtx = document.getElementById('managerSpendingChart').getContext('2d');
+  const managerChart = new Chart(managerCtx, {
+    type: 'line',
+    data: {
+      datasets: currentManagerDatasets
+    },
+    options: {
+      responsive: true,
+      interaction: {
+        mode: 'point',
+        intersect: false
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          position: 'bottom',
+          title: {
+            display: true,
+            text: 'Draft Pick Number'
+          },
+          min: 1,
+          ticks: {
+            stepSize: 20
+          }
+        },
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Dollar Amount Spent'
+          },
+          ticks: {
+            callback: function(value) {
+              return '$' + value;
+            }
+          }
+        }
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: 'Manager Spending Patterns - All Years, All Managers'
+        },
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            boxWidth: 12,
+            font: {
+              size: 11
+            }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            title: function(tooltipItems) {
+              const point = tooltipItems[0];
+              return `Pick #${point.parsed.x}`;
+            },
+            label: function(context) {
+              const point = context.raw;
+              return [
+                `${context.dataset.label}: $${point.y}`,
+                `Player: ${point.player_name}`,
+                `Position: ${point.position}`,
+                `Round: ${point.round}`
+              ];
+            }
+          }
+        }
+      }
+    }
+  });
+
+  console.log('Manager spending chart created successfully');
+
+  // Function to update manager chart with new filters
+  function updateManagerChart(filterYears, filterManager) {
+    const newDatasets = createManagerDatasets(filterYears, filterManager);
+    managerChart.data.datasets = newDatasets;
+    
+    // Update chart title based on filters
+    let titleParts = [];
+    if (filterYears[0] === 'all') {
+      titleParts.push('All Years');
+    } else if (filterYears.length === 1) {
+      titleParts.push(filterYears[0]);
+    } else {
+      titleParts.push(filterYears.sort().join(', '));
+    }
+    
+    if (filterManager === 'all') titleParts.push('All Managers');
+    else titleParts.push(filterManager);
+    
+    const chartTitle = `Manager Spending Patterns - ${titleParts.join(', ')}`;
+    managerChart.options.plugins.title.text = chartTitle;
+    
+    managerChart.update();
+    console.log(`Manager chart updated: ${filterYears.join(', ')}, ${filterManager}, datasets: ${newDatasets.length}`);
+  }
+
+  // Function to get selected manager years
+  function getSelectedManagerYears() {
+    const allYearsBtn = document.querySelector('#managerYearContainer button[data-filter-year="all"]');
+    const yearToggleBtns = document.querySelectorAll('#managerYearContainer .manager-year-toggle.active');
+    
+    if (allYearsBtn.classList.contains('active')) {
+      return ['all'];
+    } else if (yearToggleBtns.length > 0) {
+      return Array.from(yearToggleBtns).map(btn => btn.dataset.filterYear);
+    } else {
+      return ['all']; // Default to all if none selected
+    }
+  }
+
+  // Add event listener for manager "All Years" button
+  document.querySelector('#managerYearContainer button[data-filter-year="all"]').addEventListener('click', function() {
+    // Deactivate all year toggles
+    document.querySelectorAll('#managerYearContainer .manager-year-toggle').forEach(btn => btn.classList.remove('active'));
+    
+    // Activate "All Years" button
+    this.classList.add('active');
+    
+    // Update chart
+    const selectedManager = managerSelect.value;
+    updateManagerChart(['all'], selectedManager);
+  });
+
+  // Add event listeners to manager year toggle buttons
+  document.querySelectorAll('#managerYearContainer .manager-year-toggle').forEach(button => {
+    button.addEventListener('click', function() {
+      // Deactivate "All Years" button
+      document.querySelector('#managerYearContainer button[data-filter-year="all"]').classList.remove('active');
+      
+      // Toggle this button
+      this.classList.toggle('active');
+      
+      // Get selected years and update chart
+      const selectedYears = getSelectedManagerYears();
+      const selectedManager = managerSelect.value;
+      updateManagerChart(selectedYears, selectedManager);
+    });
+  });
+
+  // Add event listener to manager dropdown
+  managerSelect.addEventListener('change', function() {
+    const selectedManager = this.value;
+    const selectedYears = getSelectedManagerYears();
+    updateManagerChart(selectedYears, selectedManager);
+  });
+
+  console.log('Manager filter controls initialized');
+});
+</script>

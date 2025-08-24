@@ -490,6 +490,23 @@ class SleeperAnalyticsController < ApplicationController
     { steals: steals, busts: busts }
   end
 
+  def draft_spending_charts
+    Rails.logger.info "=== CONTROLLER ACTION CALLED: draft_spending_charts ==="
+    # Always generate chart data if drafts exist
+    if SleeperDraft.exists?
+      begin
+        @spending_chart_data = generate_draft_spending_chart_data
+        Rails.logger.info "Generated chart data successfully with #{@spending_chart_data[:draft_lines].keys.count} drafts"
+      rescue => e
+        Rails.logger.error "Failed to generate chart data: #{e.message}"
+        Rails.logger.error e.backtrace.first(10).join("\n")
+        @spending_chart_data = nil
+      end
+    else
+      Rails.logger.info "No drafts found"
+    end
+  end
+
   private
 
   def calculate_expected_value_by_draft_position(pick_no, round)
@@ -591,24 +608,40 @@ class SleeperAnalyticsController < ApplicationController
     stats[:transactions_by_season] = SleeperTransaction.joins(:sleeper_league).group('sleeper_leagues.season').count
     stats[:most_active_week] = SleeperTransaction.group(:week).count.max_by { |week, count| count }&.first
     
-    # User transaction stats - since transactions don't directly link to rosters/users,
-    # we'll need to analyze this differently or skip for now
-    stats[:user_activity] = {}
+    # User transaction stats
+    user_stats = SleeperTransaction.joins(sleeper_roster: :sleeper_user)
+                                  .group('sleeper_users.display_name')
+                                  .count
+    
+    stats[:user_activity] = {
+      most_active_user: user_stats.max_by { |user, count| count }&.first,
+      user_rankings: user_stats.sort_by { |user, count| -count }.first(10)
+    }
     
     stats
   end
 
   def calculate_transaction_trends_by_user
-    # Since transactions don't directly link to users/rosters in the current model,
-    # we'll create placeholder data for now
     trends = {}
     
-    SleeperUser.includes(:sleeper_rosters).each do |user|
+    SleeperUser.includes(sleeper_rosters: :sleeper_transactions).each do |user|
+      user_transactions = SleeperTransaction.joins(:sleeper_roster)
+                                           .where(sleeper_rosters: { sleeper_user: user })
+      
+      total_transactions = user_transactions.count
+      transactions_by_type = user_transactions.group(:transaction_type).count
+      transactions_by_season = user_transactions.joins(:sleeper_league)
+                                               .group('sleeper_leagues.season')
+                                               .count
+      
+      seasons_count = transactions_by_season.keys.length
+      avg_per_season = seasons_count > 0 ? total_transactions.to_f / seasons_count : 0.0
+      
       trends[user.display_name] = {
-        total_transactions: 0,
-        transactions_by_type: {},
-        transactions_by_season: {},
-        avg_transactions_per_season: 0.0
+        total_transactions: total_transactions,
+        transactions_by_type: transactions_by_type,
+        transactions_by_season: transactions_by_season,
+        avg_transactions_per_season: avg_per_season.round(1)
       }
     end
     
@@ -652,9 +685,9 @@ class SleeperAnalyticsController < ApplicationController
         
         if top_player
           name, points = top_player
-          { season: season, player_name: name, fantasy_points: points.round(1) }
+          { season: season, player_name: name, fantasy_points: points.to_f.round(1) }
         else
-          { season: season, player_name: nil, fantasy_points: 0 }
+          { season: season, player_name: nil, fantasy_points: 0.0 }
         end
       end
     end
@@ -680,8 +713,8 @@ class SleeperAnalyticsController < ApplicationController
         
         {
           player_name: player_name,
-          total_points: total_points.round(1),
-          weekly_data: weekly_stats.map { |week, points| { week: week, points: points.round(1) } }
+          total_points: total_points.to_f.round(1),
+          weekly_data: weekly_stats.map { |week, points| { week: week, points: points.to_f.round(1) } }
         }
       end
     end
@@ -701,9 +734,9 @@ class SleeperAnalyticsController < ApplicationController
         top_12 = season_totals.first(12)
         next_12 = season_totals[12..23] || []
         
-        top_12_avg = (top_12.sum / 12.0).round(1)
-        next_12_avg = next_12.any? ? (next_12.sum / next_12.length.to_f).round(1) : 0
-        dropoff = (top_12_avg - next_12_avg).round(1)
+        top_12_avg = (top_12.sum / 12.0).to_f.round(1)
+        next_12_avg = next_12.any? ? (next_12.sum / next_12.length.to_f).to_f.round(1) : 0.0
+        dropoff = (top_12_avg - next_12_avg).to_f.round(1)
         
         chart_data[:position_scarcity_2024][position] = {
           top_12_average: top_12_avg,
@@ -715,5 +748,51 @@ class SleeperAnalyticsController < ApplicationController
     end
 
     chart_data
+  end
+
+  def generate_draft_spending_chart_data
+    spending_data = {
+      metadata: {
+        generated_at: Time.current,
+        total_drafts: SleeperDraft.count,
+        chart_type: 'draft_spending_analysis'
+      },
+      draft_lines: {}
+    }
+
+    # Generate a line for each draft
+    SleeperDraft.includes(:sleeper_draft_picks, :sleeper_league).each do |draft|
+      league = draft.sleeper_league
+      picks = draft.sleeper_draft_picks.order(:pick_no)
+      
+      # Create data points for this draft line
+      line_data = picks.map do |pick|
+        amount = pick.metadata['amount']&.to_i || 0
+        player_name = [pick.metadata['first_name'], pick.metadata['last_name']].compact.join(' ')
+        
+        {
+          x: pick.pick_no,
+          y: amount,
+          player_name: player_name,
+          position: pick.metadata['position'],
+          team: pick.metadata['team']
+        }
+      end
+      
+      # Add this draft as a line in the chart
+      draft_key = "#{league.season}_#{league.name.gsub(' ', '_')}"
+      spending_data[:draft_lines][draft_key] = {
+        label: "#{league.season} #{league.name}",
+        data: line_data,
+        season: league.season,
+        league_name: league.name,
+        total_picks: picks.count,
+        max_spend: line_data.map { |point| point[:y] }.max,
+        min_spend: line_data.map { |point| point[:y] }.min,
+        avg_spend: (line_data.map { |point| point[:y] }.sum.to_f / line_data.size).round(1)
+      }
+    end
+
+    spending_data
   end
 end

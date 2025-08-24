@@ -65,9 +65,9 @@ class SleeperPlayer < ApplicationRecord
                        .max_by { |season, points| points }
   end
 
-  def self.import_from_sleeper_api(use_cache: false)
+  def self.import_from_sleeper_api
     api_service = SleeperApiService.new
-    players_data = api_service.get_players_nfl(use_cache: use_cache)
+    players_data = api_service.get_players_nfl
     
     return 0 unless players_data&.any?
     

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_02_210654) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_16_212138) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -327,9 +327,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_02_210654) do
     t.json "metadata"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "sleeper_roster_id"
     t.index ["season"], name: "index_sleeper_transactions_on_season"
     t.index ["sleeper_league_id", "week", "season"], name: "idx_on_sleeper_league_id_week_season_047050a1b0"
     t.index ["sleeper_league_id"], name: "index_sleeper_transactions_on_sleeper_league_id"
+    t.index ["sleeper_roster_id"], name: "index_sleeper_transactions_on_sleeper_roster_id"
     t.index ["sleeper_transaction_id"], name: "index_sleeper_transactions_on_sleeper_transaction_id", unique: true
     t.index ["transaction_type"], name: "index_sleeper_transactions_on_transaction_type"
   end
@@ -508,6 +510,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_02_210654) do
   add_foreign_key "sleeper_rosters", "sleeper_leagues"
   add_foreign_key "sleeper_rosters", "sleeper_users"
   add_foreign_key "sleeper_transactions", "sleeper_leagues"
+  add_foreign_key "sleeper_transactions", "sleeper_rosters"
   add_foreign_key "te_season_stats", "players"
   add_foreign_key "te_weekly_stats", "players"
   add_foreign_key "wr_season_stats", "players"

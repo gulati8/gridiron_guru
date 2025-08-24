@@ -7,6 +7,7 @@ Rails.application.routes.draw do
       get :team_performance
       get :transaction_analysis
       get :player_charts
+      get :draft_spending_charts
     end
   end
   # Root route - home page

@@ -54,7 +54,7 @@ class SleeperImportService
     # Only import players if we have fewer than 1000 (indicating empty or incomplete data)
     if SleeperPlayer.count < 1000
       Rails.logger.info "Importing Sleeper players (current count: #{SleeperPlayer.count})"
-      players_imported = SleeperPlayer.import_from_sleeper_api(use_cache: true)
+      players_imported = SleeperPlayer.import_from_sleeper_api
       Rails.logger.info "Imported #{players_imported} players"
     else
       Rails.logger.info "Skipping player import (#{SleeperPlayer.count} players already exist)"
@@ -335,8 +335,26 @@ class SleeperImportService
       sleeper_transaction_id: transaction_data['transaction_id']
     )
     
+    # Find the primary roster involved in this transaction
+    # Use creator first, then fall back to first roster_id
+    roster = nil
+    if transaction_data['creator'].present?
+      # Find roster by the user who created the transaction
+      creator_user = SleeperUser.find_by(sleeper_user_id: transaction_data['creator'])
+      if creator_user
+        roster = league.sleeper_rosters.find_by(sleeper_user: creator_user)
+      end
+    end
+    
+    # Fall back to first roster_id if creator roster not found
+    if roster.nil? && transaction_data['roster_ids']&.any?
+      first_roster_id = transaction_data['roster_ids'].first
+      roster = league.sleeper_rosters.find_by(sleeper_roster_id: first_roster_id)
+    end
+    
     transaction.assign_attributes(
       sleeper_league: league,
+      sleeper_roster: roster,
       transaction_type: transaction_data['type'],
       status: transaction_data['status'],
       week: week,

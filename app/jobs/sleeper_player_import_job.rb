@@ -1,11 +1,11 @@
 class SleeperPlayerImportJob < ApplicationJob
   queue_as :default
 
-  def perform(use_cache: false)
-    Rails.logger.info "Starting Sleeper player import job (use_cache: #{use_cache})"
+  def perform
+    Rails.logger.info "Starting Sleeper player import job"
     
     begin
-      imported_count = SleeperPlayer.import_from_sleeper_api(use_cache: use_cache)
+      imported_count = SleeperPlayer.import_from_sleeper_api
       Rails.logger.info "SleeperPlayerImportJob completed successfully. Imported #{imported_count} players."
     rescue => e
       Rails.logger.error "SleeperPlayerImportJob failed: #{e.message}"

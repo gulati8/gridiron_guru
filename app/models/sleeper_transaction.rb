@@ -1,5 +1,6 @@
 class SleeperTransaction < ApplicationRecord
   belongs_to :sleeper_league
+  belongs_to :sleeper_roster, optional: true
 
   validates :sleeper_transaction_id, presence: true, uniqueness: true
   validates :transaction_type, presence: true

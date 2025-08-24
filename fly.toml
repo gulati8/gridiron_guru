@@ -11,9 +11,11 @@ console_command = '/rails/bin/rails console'
 
 [env]
   PORT=8080
+  REDIS_URL="redis://default:4a663ae13f5545239a988c3a4d91279e@fly-gridiron-guru-redis.upstash.io:6379"
 
 [processes]
   app = "bin/rails server -p 8080 -b 0.0.0.0"
+  sidekiq = "bundle exec sidekiq"
 
 [http_service]
   internal_port = 8080

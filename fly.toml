@@ -12,6 +12,9 @@ console_command = '/rails/bin/rails console'
 [env]
   PORT=8080
 
+[processes]
+  app = "bin/rails server -p 8080 -b 0.0.0.0"
+
 [http_service]
   internal_port = 8080
   force_https = true
